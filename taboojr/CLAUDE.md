@@ -14,7 +14,6 @@ alongside the site that serves it.
 
 Single self-contained `index.html` — inline CSS and JS, no build tooling, no
 framework, no network calls except the Baloo 2 webfont from Google Fonts.
-Same shape as `alicia-board-game` and `alicia-restaurant-game`.
 
 ## The one wrinkle: there IS a build step
 

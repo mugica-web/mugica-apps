@@ -40,29 +40,9 @@ def cook_timer():
     return render_template("cook_timer.html", firebase_api_key=api_key())
 
 
-@app.route("/board-game")
-def board_game():
-    return render_template("board_game.html")
-
-
-@app.route("/restaurant-game")
-def restaurant_game():
-    return render_template("restaurant_game.html")
-
-
 @app.route("/taboo-jr")
 def taboo_jr():
     return render_template("taboo_jr.html")
-
-
-@app.route("/house-stylist")
-def house_stylist():
-    return render_template("house_stylist.html")
-
-
-@app.route("/lineup-creator")
-def lineup_creator():
-    return render_template("lineup_creator.html", firebase_api_key=api_key())
 
 
 # This block runs only when you execute "python app.py" directly.
