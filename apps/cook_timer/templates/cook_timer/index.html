@@ -18,14 +18,17 @@
 </head>
 <body>
 
-    <h1>🍳 Cooking Timer</h1>
-
     <!-- ========== USER BAR ========== -->
-    <!-- Shown when logged in. Displays the user's email and a sign-out button. -->
+    <!-- Shown when logged in: back to the dashboard, the user's email, sign out. -->
     <div id="user-bar" class="user-bar" style="display: none;">
-        <span id="user-email"></span>
-        <button onclick="logOut()" class="btn btn-logout">Sign Out</button>
+        <div class="user-bar-left">
+            <a href="/dashboard" class="back-link">← All apps</a>
+            <span id="user-email"></span>
+        </div>
+        <button onclick="logOut()" class="btn btn-logout">Sign out</button>
     </div>
+
+    <h1>Cooking Timer</h1>
 
     <!-- ========== SETUP SECTION ========== -->
     <!-- Where the user adds dishes and steps BEFORE starting.
@@ -51,7 +54,7 @@
                     time you pick.
                 </li>
                 <li>
-                    <strong>Tap Start Cooking.</strong>
+                    <strong>Tap Start cooking.</strong>
                     Each dish shows what to do next and counts down to it.
                 </li>
                 <li>
@@ -62,7 +65,7 @@
                 <li>
                     <strong>Keep this page open with the screen on.</strong>
                     Alarms can't ring if the phone locks or you switch to another app. On iPhone the
-                    silent switch mutes the alarm, so use ▶ Test at the bottom to check.
+                    silent switch mutes the alarm, so check with ▶ Test under Alert sounds at the bottom.
                 </li>
             </ol>
         </details>
@@ -70,19 +73,19 @@
         <!-- ========== SAVED DISHES SECTION ========== -->
         <!-- Dishes saved to Firestore. Load one to add it to the meal below. -->
         <div id="saved-section">
-            <h3>Saved Dishes</h3>
+            <h2>Saved dishes</h2>
             <div id="saved-dishes-container">
                 <p class="saved-empty">No saved dishes yet. Use the "Save" button on a dish to save it.</p>
             </div>
         </div>
 
-        <h2>Plan Your Meal</h2>
+        <h2>Plan your meal</h2>
 
         <!-- Container where dish cards are added dynamically -->
         <div id="dishes-container"></div>
 
         <div class="button-row">
-            <button onclick="addDish()" class="btn btn-add">+ Add Dish</button>
+            <button onclick="addDish()" class="btn btn-secondary btn-add">+ Add dish</button>
         </div>
 
         <!-- Timing mode. Internally there are three modes:
@@ -90,8 +93,8 @@
                "finish"  — dishes finish together, as soon as possible
                "done-by" — dishes finish together at a clock time
              The UI shows "finish" and "done-by" as two options under Finish Together. -->
+        <h2>Timing</h2>
         <div class="mode-toggle">
-            <span class="mode-label">Timing:</span>
             <div class="toggle-buttons">
                 <button id="mode-start" class="btn btn-mode active" onclick="setMode('start')">
                     Start together
@@ -115,7 +118,7 @@
                 </label>
             </div>
             <p class="mode-description" id="mode-description">
-                Every dish starts as soon as you tap Start Cooking.
+                Every dish starts as soon as you tap Start cooking.
             </p>
         </div>
 
@@ -123,12 +126,12 @@
         <div id="plan-preview" class="plan-preview" style="display: none;"></div>
 
         <div class="button-row">
-            <button onclick="startCooking()" class="btn btn-start">Start Cooking!</button>
+            <button onclick="startCooking()" class="btn btn-primary btn-start">Start cooking</button>
         </div>
 
         <!-- ========== SOUND SETTINGS SECTION ========== -->
-        <div id="sound-settings" class="sound-settings">
-            <h3>Alert Sounds</h3>
+        <details id="sound-settings" class="sound-settings">
+            <summary>Alert sounds</summary>
             <div class="sound-row">
                 <label class="sound-label" for="warn-sound-select">30-sec warning:</label>
                 <select id="warn-sound-select" class="sound-select" onchange="saveSoundPrefs()">
@@ -142,7 +145,7 @@
                     <option value="siren">Siren</option>
                     <option value="buzz">Buzz</option>
                 </select>
-                <button onclick="testSound('warn')" class="btn btn-test">&#9654; Test</button>
+                <button onclick="testSound('warn')" class="btn btn-secondary btn-test">&#9654; Test</button>
             </div>
             <div class="sound-row">
                 <label class="sound-label" for="final-sound-select">Step alarm:</label>
@@ -157,13 +160,13 @@
                     <option value="siren">Siren</option>
                     <option value="buzz">Buzz</option>
                 </select>
-                <button onclick="testSound('final')" class="btn btn-test">&#9654; Test</button>
+                <button onclick="testSound('final')" class="btn btn-secondary btn-test">&#9654; Test</button>
             </div>
             <p class="sound-note">
                 The step alarm repeats every few seconds until you tap Done.
                 Can't hear the test? Turn the volume up and, on iPhone, turn off silent mode.
             </p>
-        </div>
+        </details>
     </div>
 
     <!-- ========== TIMER SECTION ========== -->
@@ -177,20 +180,21 @@
             <div id="alert-strip" class="alert-strip" style="display: none;"></div>
         </div>
 
-        <h2 id="timer-heading">Cooking In Progress...</h2>
+        <p id="timer-heading" class="timer-heading">Cooking</p>
         <!-- Shows the target finish time in the "finish together" modes -->
         <p id="done-by-info" class="done-by-info" style="display: none;"></p>
         <p id="keep-open-note" class="keep-open-note">
             Keep this page open with the screen on. Alarms can't ring if the phone locks or you switch apps.
         </p>
 
-        <!-- Live countdowns are displayed here, one card per dish -->
+        <!-- Live countdowns are displayed here, one row per dish -->
         <div id="timers-container"></div>
+        <p id="timer-hint" class="timer-hint">Tap a dish for Pause and Done early.</p>
 
         <div class="timer-buttons">
-            <button id="btn-pause" onclick="togglePause()" class="btn btn-pause">Pause All</button>
-            <button onclick="testSound('final')" class="btn btn-test">&#9654; Test sound</button>
-            <button id="btn-stop" onclick="confirmStop()" class="btn btn-stop">Stop & Reset</button>
+            <button id="btn-pause" onclick="togglePause()" class="btn btn-secondary">Pause all</button>
+            <button onclick="testSound('final')" class="btn btn-secondary">&#9654; Test sound</button>
+            <button id="btn-stop" onclick="confirmStop()" class="btn btn-danger">Stop &amp; reset</button>
         </div>
     </div>
 
@@ -198,10 +202,10 @@
     <!-- Shown while timers are paused. Displays a running stopwatch and a Resume button. -->
     <div id="pause-overlay" style="display:none;">
         <div class="pause-modal">
-            <div class="pause-modal-title">⏸ Timers Paused</div>
+            <div class="pause-modal-title">Timers paused</div>
             <div id="pause-stopwatch" class="pause-stopwatch">0:00</div>
             <div class="pause-modal-label">paused for</div>
-            <button onclick="togglePause()" class="btn btn-start" style="margin-top: 24px; font-size: 1.2em; padding: 14px 40px;">▶ Resume</button>
+            <button onclick="togglePause()" class="btn btn-primary btn-resume">▶ Resume</button>
         </div>
     </div>
 
@@ -391,7 +395,7 @@
 
         const desc = document.getElementById("mode-description");
         if (mode === "start") {
-            desc.textContent = "Every dish starts as soon as you tap Start Cooking.";
+            desc.textContent = "Every dish starts as soon as you tap Start cooking.";
         } else if (mode === "finish") {
             desc.textContent = "Shorter dishes start later, so everything is ready at the same moment, as soon as possible.";
         } else {
@@ -426,12 +430,12 @@
             '<div class="dish-header">' +
                 '<input type="text" placeholder="Dish name (e.g. Chicken)" class="dish-name">' +
                 '<div class="dish-header-buttons">' +
-                    '<button onclick="saveDish(' + dishId + ', this)" class="btn btn-save">Save</button>' +
-                    '<button onclick="removeDish(' + dishId + ')" class="btn btn-remove">Remove</button>' +
+                    '<button onclick="saveDish(' + dishId + ', this)" class="btn btn-text">Save</button>' +
+                    '<button onclick="removeDish(' + dishId + ')" class="btn btn-text">Remove</button>' +
                 '</div>' +
             '</div>' +
             '<div class="steps-container" id="steps-' + dishId + '"></div>' +
-            '<button onclick="addStep(' + dishId + ')" class="btn btn-add-step">+ Add Step</button>';
+            '<button onclick="addStep(' + dishId + ')" class="btn btn-text btn-add-step">+ Add step</button>';
 
         document.getElementById("dishes-container").appendChild(dishDiv);
 
@@ -747,10 +751,11 @@
     function showTimerView() {
         document.getElementById("setup-section").style.display = "none";
         document.getElementById("timer-section").style.display = "block";
-        document.getElementById("timer-heading").textContent = "Cooking In Progress...";
+        document.getElementById("timer-heading").textContent = "Cooking";
+        document.getElementById("timer-hint").style.display = "";
         document.getElementById("btn-pause").style.display = "";
-        document.getElementById("btn-pause").textContent = isPaused ? "Resume All" : "Pause All";
-        document.getElementById("btn-stop").textContent = "Stop & Reset";
+        document.getElementById("btn-pause").textContent = isPaused ? "Resume all" : "Pause all";
+        document.getElementById("btn-stop").textContent = "Stop & reset";
 
         const info = document.getElementById("done-by-info");
         info.textContent = doneByText;
@@ -783,9 +788,27 @@
         });
     }
 
-    // renderDishCard(i) — Builds a dish card's structure and buttons. Called
-    // when the card's step or state changes. The numbers inside are filled
-    // in by updateDishCard(), which runs every tick.
+    // Dishes whose row is tapped open to show Pause / Done early.
+    // (A ringing dish is always open, so its Done button is always there.)
+    const expandedDishes = new Set();
+
+    // toggleCardExpanded(event, i) — Tapping a row (not one of its buttons)
+    // opens or closes it.
+    function toggleCardExpanded(event, dishIndex) {
+        if (event.target.closest("button")) return;
+        if (expandedDishes.has(dishIndex)) expandedDishes.delete(dishIndex);
+        else expandedDishes.add(dishIndex);
+        updateDishCard(dishIndex, new Date());
+    }
+
+    // renderDishCard(i) — Builds a dish row's structure and buttons. Called
+    // when the row's step or state changes. The text inside is filled in by
+    // updateDishCard(), which runs every tick.
+    //
+    //   CHICKEN · STEP 1 OF 2                 04:32
+    //   Flip
+    //   at 5:01 PM · then Take out 2 min later
+    //   [opens on tap: ready time, Pause, Done early]
     function renderDishCard(dishIndex) {
         const dish = activeDishes[dishIndex];
         const box = document.getElementById("dish-timer-" + dishIndex);
@@ -794,11 +817,14 @@
         if (dish.done) {
             box.innerHTML =
                 '<div class="timer-card done">' +
-                    '<div class="timer-dish">' + escapeHtml(dish.name) + '</div>' +
-                    '<div class="timer-action">All done!</div>' +
-                    '<div class="timer-countdown">✓</div>' +
-                    '<div class="timer-progress">' +
-                        (dish.finishedAt ? "Finished at " + formatTimeForDisplay(dish.finishedAt) : "All steps completed") +
+                    '<div class="tc-row">' +
+                        '<div class="tc-text">' +
+                            '<div class="timer-dish">' + escapeHtml(dish.name) + ' · Done</div>' +
+                            '<div class="timer-action">' +
+                                (dish.finishedAt ? "Finished at " + formatTimeForDisplay(dish.finishedAt) : "All steps completed") +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="timer-countdown">✓</div>' +
                     '</div>' +
                 '</div>';
             return;
@@ -813,31 +839,35 @@
                 '</button>';
         } else {
             buttons =
-                '<button class="btn btn-dish-pause" onclick="toggleDishPause(' + dishIndex + ')">' +
+                '<button class="btn btn-secondary" onclick="toggleDishPause(' + dishIndex + ')">' +
                     (dish.paused ? "&#9654; Resume" : "&#9646;&#9646; Pause") +
                 '</button>' +
-                '<button class="btn btn-skip-step" onclick="doStepEarly(' + dishIndex + ')">' +
+                '<button class="btn btn-secondary" onclick="doStepEarly(' + dishIndex + ')">' +
                     (step.isWait ? "&#9654; Start now" : "✓ Done early") +
                 '</button>';
         }
 
         box.innerHTML =
-            '<div class="timer-card">' +
-                '<div class="timer-dish">' + escapeHtml(dish.name) + '</div>' +
-                '<div class="timer-label" data-role="label"></div>' +
-                '<div class="timer-action">' + escapeHtml(step.action) + '</div>' +
-                '<div class="timer-countdown" data-role="countdown">--:--</div>' +
-                '<div class="timer-sub" data-role="sub"></div>' +
-                '<div class="timer-then" data-role="then"></div>' +
-                '<div class="timer-progress" data-role="progress"></div>' +
-                '<div class="card-btns">' + buttons + '</div>' +
+            '<div class="timer-card" onclick="toggleCardExpanded(event, ' + dishIndex + ')">' +
+                '<div class="tc-row">' +
+                    '<div class="tc-text">' +
+                        '<div class="timer-dish" data-role="kicker"></div>' +
+                        '<div class="timer-action">' + escapeHtml(step.action) + '</div>' +
+                        '<div class="timer-sub" data-role="sub"></div>' +
+                    '</div>' +
+                    '<div class="timer-countdown" data-role="countdown">--:--</div>' +
+                '</div>' +
+                '<div class="tc-more">' +
+                    '<div class="timer-progress" data-role="progress"></div>' +
+                    '<div class="card-btns">' + buttons + '</div>' +
+                '</div>' +
             '</div>';
 
         updateDishCard(dishIndex, new Date());
     }
 
-    // updateDishCard(i, now) — Refreshes a card's countdown, clock times,
-    // "Then:" line and colour. Only touches text, never the buttons.
+    // updateDishCard(i, now) — Refreshes a row's countdown, times and colour.
+    // Only touches text, never the buttons.
     function updateDishCard(dishIndex, now) {
         const dish = activeDishes[dishIndex];
         if (dish.done) return;
@@ -865,38 +895,38 @@
         else if (step.isWait) state = "waiting";
         else if (remainingSec <= WARNING_SECONDS) state = "imminent";
         else state = "upcoming";
-        card.className = "timer-card " + state + ((dish.paused || isPaused) ? " paused" : "");
+        card.className = "timer-card " + state +
+            ((dish.paused || isPaused) ? " paused" : "") +
+            (expandedDishes.has(dishIndex) ? " expanded" : "");
 
-        part("label").textContent = step.fired ? "Now" : "Next";
-
-        if (step.fired) {
-            part("countdown").textContent = "NOW!";
-            part("sub").textContent = "Ringing for " + formatCountdown(Math.floor(lateMs / 1000)) +
-                ". Tap " + (step.isWait ? "Started" : "Done") + " when you've done it.";
-        } else {
-            part("countdown").textContent = formatCountdown(remainingSec);
-            part("sub").textContent = dish.paused
-                ? "Paused"
-                : "at " + formatWhen(step.fireTime, now);
-        }
-
-        if (next) {
-            const gap = formatDuration(next.fireTime - step.fireTime);
-            part("then").textContent = step.fired
-                ? "Then: " + next.action + ", " + gap + " after you tap " + (step.isWait ? "Started" : "Done")
-                : "Then: " + next.action + ", " + gap + " later (" +
-                  formatWhen(new Date(next.fireTime.getTime() + shiftMs), now) + ")";
-        } else {
-            part("then").textContent = "This is the last step.";
-        }
-
+        // Kicker: "CHICKEN · STEP 1 OF 2" (uppercased by CSS)
         const hasWait = dish.steps[0].isWait;
         const totalCooking = hasWait ? dish.steps.length - 1 : dish.steps.length;
         const stepNumber = hasWait ? dish.currentStep : dish.currentStep + 1;
-        const readyAt = new Date(last.fireTime.getTime() + shiftMs);
-        part("progress").textContent =
-            (step.isWait ? "Not started yet" : "Step " + stepNumber + " of " + totalCooking) +
-            " · ready about " + formatWhen(readyAt, now);
+        let label;
+        if (step.fired) label = "Now";
+        else if (dish.paused) label = "Paused";
+        else if (step.isWait) label = "Not started";
+        else label = "Step " + stepNumber + " of " + totalCooking;
+        part("kicker").textContent = dish.name + " · " + label;
+
+        // "then Take out 2 min later" — what comes after this step
+        const doneWord = step.isWait ? "Started" : "Done";
+        let thenText = " · last step";
+        if (next) {
+            const gap = formatDuration(next.fireTime - step.fireTime);
+            thenText = " · then " + next.action + ", " + gap + (step.fired ? " after " + doneWord : " later");
+        }
+
+        if (step.fired) {
+            part("countdown").textContent = "NOW";
+            part("sub").textContent = "Ringing " + formatCountdown(Math.floor(lateMs / 1000)) + thenText;
+        } else {
+            part("countdown").textContent = formatCountdown(remainingSec);
+            part("sub").textContent = (dish.paused ? "Paused" : "at " + formatWhen(step.fireTime, now)) + thenText;
+        }
+
+        part("progress").textContent = "Ready about " + formatWhen(new Date(last.fireTime.getTime() + shiftMs), now);
     }
 
 
@@ -992,7 +1022,8 @@
         localStorage.removeItem("cookTimerState");
         releaseWakeLock();
 
-        document.getElementById("timer-heading").textContent = "All done! 🎉";
+        document.getElementById("timer-heading").textContent = "All done";
+        document.getElementById("timer-hint").style.display = "none";
         document.getElementById("btn-pause").style.display = "none";
         document.getElementById("btn-stop").textContent = "Back to setup";
         document.title = "Cooking Timer";
@@ -1027,6 +1058,7 @@
         dish.paused = false;
         dish.pauseStartTime = null;
 
+        expandedDishes.delete(dishIndex);
         advanceDish(dishIndex, now);
         updateTimers();
     }
@@ -1125,7 +1157,7 @@
         if (!isPaused) {
             isPaused = true;
             pauseStartTime = now;
-            document.getElementById("btn-pause").textContent = "Resume All";
+            document.getElementById("btn-pause").textContent = "Resume all";
             activeDishes.forEach(function(dish, i) { updateDishCard(i, now); });
             updateAlertStrip([]);
             showPauseOverlay();
@@ -1142,7 +1174,7 @@
             });
             isPaused = false;
             pauseStartTime = null;
-            document.getElementById("btn-pause").textContent = "Pause All";
+            document.getElementById("btn-pause").textContent = "Pause all";
             hidePauseOverlay();
             updateTimers();
         }
@@ -1394,6 +1426,7 @@
         clearInterval(timerInterval);
         timerInterval = null;
         activeDishes = [];
+        expandedDishes.clear();
         isPaused = false;
         pauseStartTime = null;
         hidePauseOverlay();
@@ -1657,9 +1690,9 @@
                     '<span class="saved-dish-summary">' + summary + '</span>' +
                 '</div>' +
                 '<div class="saved-dish-buttons">' +
-                    '<button onclick="loadDish(\'' + dish.id + '\')" class="btn btn-load">Load</button>' +
-                    '<button onclick="editSavedDish(\'' + dish.id + '\')" class="btn btn-save">Edit</button>' +
-                    '<button onclick="deleteSavedDish(\'' + dish.id + '\')" class="btn btn-delete">Delete</button>' +
+                    '<button onclick="loadDish(\'' + dish.id + '\')" class="btn btn-secondary">Load</button>' +
+                    '<button onclick="editSavedDish(\'' + dish.id + '\')" class="btn btn-text">Edit</button>' +
+                    '<button onclick="deleteSavedDish(\'' + dish.id + '\')" class="btn btn-text btn-delete">Delete</button>' +
                 '</div>';
             container.appendChild(div);
         });
@@ -1676,12 +1709,12 @@
                 '<div class="saved-edit-header">' +
                     '<input type="text" class="dish-name saved-edit-name">' +
                     '<div class="saved-edit-buttons">' +
-                        '<button onclick="saveEditedDish(\'' + docId + '\')" class="btn btn-save">Save</button>' +
-                        '<button onclick="renderSavedDishes()" class="btn btn-remove">Cancel</button>' +
+                        '<button onclick="saveEditedDish(\'' + docId + '\')" class="btn btn-secondary">Save</button>' +
+                        '<button onclick="renderSavedDishes()" class="btn btn-text">Cancel</button>' +
                     '</div>' +
                 '</div>' +
                 '<div class="saved-edit-steps" id="saved-edit-steps-' + docId + '"></div>' +
-                '<button onclick="addEditStep(\'' + docId + '\')" class="btn btn-add-step">+ Add Step</button>' +
+                '<button onclick="addEditStep(\'' + docId + '\')" class="btn btn-text btn-add-step">+ Add step</button>' +
             '</div>';
 
         row.querySelector(".saved-edit-name").value = dish.name;

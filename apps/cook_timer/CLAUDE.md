@@ -41,11 +41,16 @@ ready time, plus validation problems (a step with no minutes blocks Start).
 
 ## Timer Loop
 - `setInterval(updateTimers, 500)` drives everything
-- Cards keep a fixed order (no re-sorting, so buttons don't move under a finger);
-  a sticky strip at the top lists ringing alarms and scrolls to the card on tap
-- `renderDishCard()` builds a card's structure/buttons on state changes;
-  `updateDishCard()` refreshes only the text each tick
-- Color states: waiting (purple) → upcoming → imminent (last 30 s) → fired (red pulse) → done (green)
+- One compact row per dish (kicker, next action, "at … · then …", countdown) so
+  3–4 dishes fit on a phone screen. Tapping a row opens it to show the ready
+  time plus Pause / Done early (`expandedDishes`); a ringing row is always open
+  and turns solid red with a big white Done button
+- Rows keep a fixed order (no re-sorting, so buttons don't move under a finger);
+  a sticky strip at the top lists ringing alarms and scrolls to the row on tap
+- `renderDishCard()` builds a row's structure/buttons on state changes;
+  `updateDishCard()` refreshes only the text and classes each tick
+- States (left edge colour): waiting (dashed grey) → upcoming (white) →
+  imminent (amber, last 30 s) → fired (solid red, flashing) → done (green)
 
 ## Alerts
 - 30-second heads-up: the "30-sec warning" sound (skipped for steps under ~35 s)
