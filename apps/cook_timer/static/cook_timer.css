@@ -1,424 +1,114 @@
-/* Cook Timer styles. Loaded after /static/site.css, which provides
-   the fonts, page layout, user bar and base .btn class. */
+/* Cook Timer styles. Loaded after /static/site.css, which provides the
+   design tokens (colours, fonts), page layout, headings and .btn styles. */
 
 
-/* ========== BUTTONS ========== */
+/* ========== HOW IT WORKS ========== */
 
-.btn-add {
-    background-color: #c8102e;
-    color: white;
+.how-it-works {
+    border-top: 1px solid var(--rule-strong);
+    padding: 12px 0 0;
+    margin-top: 22px;
+    font-size: 0.92em;
+    color: var(--muted);
 }
 
-.btn-start {
-    background-color: #2ecc71;
-    color: white;
-    font-size: 1.2em;
-    padding: 12px 30px;
-}
-
-.btn-stop {
-    background-color: #c8102e;
-    color: white;
-    font-size: 1.1em;
-}
-
-.btn-pause {
-    background-color: #c8102e;
-    color: white;
-    font-size: 1.1em;
-}
-
-.timer-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 30px;
-}
-
-/* ---- Pause overlay ---- */
-#pause-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.82);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-}
-
-.pause-modal {
-    background: #1c1c1c;
-    border: 2px solid #e8a838;
-    border-radius: 16px;
-    padding: 40px 52px;
-    text-align: center;
-    box-shadow: 0 0 40px rgba(232, 168, 56, 0.25);
-    min-width: 280px;
-}
-
-.pause-modal-title {
-    font-size: 1.5em;
+.how-it-works summary,
+.sound-settings summary {
+    cursor: pointer;
+    font-size: 0.8em;
     font-weight: 700;
-    color: #e8a838;
-    letter-spacing: 0.05em;
     text-transform: uppercase;
-    margin-bottom: 20px;
+    letter-spacing: 0.12em;
+    color: var(--text);
+    list-style: none;
 }
 
-.pause-stopwatch {
-    font-size: 4em;
-    font-weight: 800;
-    color: #fff;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.02em;
-    line-height: 1;
+.how-it-works summary::-webkit-details-marker,
+.sound-settings summary::-webkit-details-marker {
+    display: none;
 }
 
-.pause-modal-label {
-    font-size: 0.85em;
-    color: #888;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+/* "+" when closed, "−" when open */
+.how-it-works summary::after,
+.sound-settings summary::after {
+    content: " +";
+    color: var(--muted);
+}
+
+.how-it-works[open] summary::after,
+.sound-settings[open] summary::after {
+    content: " −";
+}
+
+.how-it-works ol {
+    margin: 12px 0 4px;
+    padding-left: 20px;
+}
+
+.how-it-works li {
+    margin-bottom: 8px;
+}
+
+.how-it-works strong {
+    color: var(--text);
+}
+
+.how-example {
     margin-top: 6px;
-}
-
-.btn-remove {
-    background-color: #2a2a2a;
-    color: #bbb;
-    font-size: 0.85em;
-    padding: 6px 12px;
-}
-
-.btn-save {
-    background-color: #2d6a4f;
-    color: #ccc;
-    font-size: 0.85em;
-    padding: 6px 12px;
-}
-
-.btn-load {
-    background-color: #c8102e;
-    color: white;
-    font-size: 0.85em;
-    padding: 6px 14px;
-}
-
-.btn-delete {
-    background-color: transparent;
-    color: #666;
-    font-size: 0.85em;
-    padding: 6px 10px;
-}
-
-.btn-delete:hover {
-    color: #c8102e;
-}
-
-.btn-add-step {
-    background-color: transparent;
-    color: #c8102e;
-    border: 1px dashed #c8102e;
-    font-size: 0.9em;
-    margin-top: 8px;
-}
-
-.btn-remove-step {
-    background-color: transparent;
-    color: #666;
-    font-size: 1em;
-    padding: 5px 8px;
-    border-radius: 4px;
-}
-
-.btn-remove-step:hover {
-    color: #c8102e;
-}
-
-.button-row {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 20px;
-}
-
-
-/* ========== TIMING MODE TOGGLE ========== */
-
-.mode-toggle {
-    text-align: center;
-    margin-bottom: 24px;
-    padding: 20px;
-    background-color: #181818;
-    border-radius: 12px;
-    border: 1px solid #2a2a2a;
-}
-
-.mode-label {
-    font-weight: 600;
-    font-size: 1em;
-    margin-right: 10px;
-}
-
-.toggle-buttons {
-    display: inline-flex;
-    gap: 0;
-    margin-top: 10px;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid #2a2a2a;
-}
-
-.btn-mode {
-    border-radius: 0;
-    padding: 10px 20px;
-    background-color: #222;
-    color: #777;
-    font-size: 0.95em;
-    border: none;
-}
-
-.btn-mode.active {
-    background-color: #c8102e;
-    color: white;
-}
-
-.mode-description {
-    margin-top: 10px;
-    font-size: 0.85em;
-    color: #888;
-}
-
-/* "Done By" time picker row */
-.done-by-picker {
-    margin-top: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-}
-
-.done-by-picker label {
-    font-size: 0.95em;
-    color: #ccc;
-}
-
-.done-by-time-input {
     padding: 8px 12px;
-    border: 1px solid #333;
-    border-radius: 8px;
-    background-color: #222;
-    color: white;
-    font-size: 1.1em;
-    font-family: 'Inter', sans-serif;
-}
-
-/* Target time info shown in timer view */
-.done-by-info {
-    text-align: center;
-    font-size: 1.05em;
-    color: #c8102e;
-    margin-bottom: 16px;
-    font-weight: 600;
+    border-left: 3px solid var(--rule-strong);
+    background-color: var(--surface);
+    color: var(--text);
 }
 
 
-/* ========== DISH CARDS (Setup) ========== */
-
-.dish-card {
-    background-color: #181818;
-    border: 1px solid #2a2a2a;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 16px;
-}
-
-.dish-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.dish-header-buttons {
-    display: flex;
-    gap: 6px;
-}
-
-.dish-name {
-    font-size: 1.1em;
-    padding: 8px 12px;
-    border: 1px solid #333;
-    border-radius: 8px;
-    background-color: #222;
-    color: white;
-    width: 70%;
-    font-family: 'Inter', sans-serif;
-}
-
-.dish-name::placeholder {
-    color: #555;
-}
-
-
-/* ========== STEP ROWS (Setup) ========== */
-
-.step-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-}
-
-.step-action {
-    flex: 1;
-    padding: 8px 10px;
-    border: 1px solid #333;
-    border-radius: 8px;
-    background-color: #222;
-    color: white;
-    font-size: 0.95em;
-    font-family: 'Inter', sans-serif;
-}
-
-.step-action::placeholder {
-    color: #555;
-}
-
-.step-minutes {
-    width: 65px;
-    padding: 8px 10px;
-    border: 1px solid #333;
-    border-radius: 8px;
-    background-color: #222;
-    color: white;
-    font-size: 0.95em;
-    text-align: center;
-    font-family: 'Inter', sans-serif;
-}
-
-.step-label {
-    color: #777;
-    font-size: 0.9em;
-}
-
-
-/* ========== SAVED DISHES PANEL ========== */
-
-#saved-section {
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid #2a2a2a;
-}
-
-#saved-section h3 {
-    text-align: center;
-    font-size: 1.1em;
-    color: #999;
-    margin-bottom: 14px;
-}
+/* ========== SAVED DISHES ========== */
 
 .saved-empty {
-    text-align: center;
-    color: #555;
+    color: var(--faint);
     font-size: 0.9em;
-    padding: 10px;
-}
-
-/* ========== SOUND SETTINGS ========== */
-
-.sound-settings {
-    background-color: #181818;
-    border: 1px solid #2a2a2a;
-    border-radius: 10px;
-    padding: 14px 18px;
-    margin-bottom: 20px;
-}
-
-.sound-settings h3 {
-    margin: 0 0 12px 0;
-    font-size: 0.95em;
-    color: #aaa;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-}
-
-.sound-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-.sound-row:last-child {
-    margin-bottom: 0;
-}
-
-.sound-label {
-    min-width: 130px;
-    font-size: 0.9em;
-    color: #bbb;
-}
-
-.sound-select {
-    flex: 1;
-    background-color: #222;
-    color: #eee;
-    border: 1px solid #444;
-    border-radius: 6px;
-    padding: 6px 8px;
-    font-size: 0.9em;
-    cursor: pointer;
-}
-
-.sound-select:focus {
-    outline: none;
-    border-color: #e8a838;
-}
-
-.btn-test {
-    background-color: #2a2a2a;
-    color: #e8a838;
-    border: 1px solid #444;
-    white-space: nowrap;
-    font-size: 0.85em;
-    padding: 6px 10px;
-}
-
-.btn-test:hover {
-    background-color: #333;
-    border-color: #e8a838;
 }
 
 .saved-dish-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #181818;
-    border: 1px solid #2a2a2a;
-    border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 8px;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--rule);
+}
+
+.saved-dish-row:first-child {
+    padding-top: 0;
 }
 
 .saved-dish-info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    min-width: 0;
 }
 
 .saved-dish-name {
-    font-weight: 600;
-    font-size: 1em;
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: 1.15em;
+    line-height: 1.2;
 }
 
 .saved-dish-summary {
     font-size: 0.8em;
-    color: #777;
+    color: var(--muted);
 }
 
 .saved-dish-buttons {
     display: flex;
-    gap: 6px;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.btn-delete:hover {
+    color: var(--red);
 }
 
 /* Inline edit form — replaces the normal saved dish row content */
@@ -442,158 +132,639 @@
 
 .saved-edit-buttons {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     flex-shrink: 0;
 }
 
 
-/* ========== TIMER CARDS (Cooking View) ========== */
+/* ========== DISH CARDS (Setup) ========== */
 
-.timer-card {
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 14px;
-    text-align: center;
-    transition: background-color 0.3s, transform 0.2s;
+.dish-card {
+    background-color: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 14px 16px 8px;
+    margin-bottom: 12px;
 }
 
-.timer-dish {
-    font-size: 0.75em;
+.dish-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.dish-header-buttons {
+    display: flex;
+    flex-shrink: 0;
+}
+
+/* The dish name is typed straight into a headline */
+.dish-name {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--serif);
+    font-size: 1.4em;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: #666;
-    margin-bottom: 4px;
+    color: var(--text);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--rule-strong);
+    border-radius: 0;
+    padding: 4px 0;
 }
 
-.timer-action {
-    font-size: 1.1em;
+.dish-name:focus {
+    outline: none;
+    border-bottom-color: var(--text);
+}
+
+.dish-name::placeholder {
+    color: var(--faint);
+}
+
+
+/* ========== STEP ROWS (Setup) ========== */
+
+.step-row {
+    display: grid;
+    grid-template-columns: auto 64px auto 1fr auto;
+    align-items: center;
+    gap: 8px;
     margin-bottom: 8px;
 }
 
-.timer-countdown {
-    font-family: 'Playfair Display', Georgia, serif;
-    font-size: 3.5em;
-    font-weight: 800;
-    font-variant-numeric: tabular-nums;
+.step-action,
+.step-minutes,
+.sound-select,
+.done-by-time-input {
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius);
+    background-color: var(--surface-2);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 1em;
 }
 
-/* Step progress indicator (e.g., "Step 2 of 4") */
-.timer-progress {
+.step-action:focus,
+.step-minutes:focus,
+.sound-select:focus,
+.done-by-time-input:focus {
+    outline: none;
+    border-color: var(--text);
+}
+
+.step-action {
+    min-width: 0;
+}
+
+.step-action::placeholder,
+.step-minutes::placeholder {
+    color: var(--faint);
+}
+
+.step-minutes {
+    text-align: center;
+    padding: 0 6px;
+}
+
+.step-label {
+    color: var(--muted);
     font-size: 0.85em;
-    color: #888;
+    white-space: nowrap;
+}
+
+.step-after {
+    min-width: 5.5em;
+}
+
+.btn-remove-step {
+    background: transparent;
+    border: none;
+    color: var(--faint);
+    font-size: 1em;
+    width: 36px;
+    height: 44px;
+    cursor: pointer;
+}
+
+.btn-remove-step:hover {
+    color: var(--red);
+}
+
+.btn-add-step {
+    padding-left: 0;
+}
+
+.button-row {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.btn-add {
+    width: 100%;
+    border-style: dashed;
+}
+
+
+/* ========== TIMING ========== */
+
+.toggle-buttons {
+    display: flex;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.btn-mode {
+    flex: 1;
+    border: none;
+    border-radius: 0;
+    background-color: transparent;
+    color: var(--muted);
+}
+
+.btn-mode + .btn-mode {
+    border-left: 1px solid var(--rule-strong);
+}
+
+.btn-mode.active {
+    background-color: var(--text);
+    color: var(--bg);
+}
+
+.finish-options {
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.finish-options label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.finish-options input[type="radio"] {
+    accent-color: var(--text);
+    width: 18px;
+    height: 18px;
+}
+
+.done-by-time-input {
+    color-scheme: dark;
+}
+
+.mode-description {
+    margin-top: 10px;
+    font-size: 0.85em;
+    color: var(--muted);
+}
+
+
+/* ========== PLAN PREVIEW ========== */
+
+.plan-preview {
+    margin-top: 24px;
+    border-top: 1px solid var(--rule-strong);
+    padding-top: 10px;
+    font-size: 0.92em;
+}
+
+.plan-title {
+    font-size: 0.8em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 6px;
+}
+
+.plan-row {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--rule);
+}
+
+.plan-dish {
+    font-weight: 700;
+}
+
+.plan-times {
+    color: var(--muted);
+}
+
+.plan-problem {
+    color: var(--red);
+    padding: 4px 0;
+    font-weight: 600;
+}
+
+.btn-start {
+    width: 100%;
+    min-height: 56px;
+    font-size: 1.15em;
+    margin-top: 18px;
+}
+
+
+/* ========== SOUND SETTINGS ========== */
+
+.sound-settings {
+    margin-top: 36px;
+    border-top: 1px solid var(--rule-strong);
+    padding: 12px 0;
+}
+
+.sound-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.sound-label {
+    min-width: 120px;
+    font-size: 0.9em;
+    color: var(--muted);
+}
+
+.sound-select {
+    flex: 1;
+    cursor: pointer;
+}
+
+.btn-test {
+    white-space: nowrap;
+}
+
+.sound-note {
+    font-size: 0.82em;
+    color: var(--muted);
+    margin-top: 12px;
+}
+
+
+/* ========== COOKING VIEW ========== */
+
+/* Sticky bar at the top: sound-off banner + ringing alarms */
+.timer-alerts {
+    position: sticky;
+    top: 0;
+    z-index: 500;
+    padding-top: 8px;
+}
+
+.sound-banner {
+    background-color: var(--amber);
+    color: #111;
+    font-weight: 800;
+    text-align: center;
+    padding: 14px;
+    border-radius: var(--radius);
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+.alert-strip {
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.alert-chip {
+    background-color: var(--red);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    font-family: var(--sans);
+    font-size: 1em;
+    font-weight: 800;
+    text-align: left;
+    cursor: pointer;
+    animation: alarm-flash 0.8s infinite alternate;
+}
+
+/* "Cooking" / "All done" — a kicker-style label above the rows */
+.timer-heading {
+    font-size: 0.8em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    border-top: 1px solid var(--rule-strong);
+    padding-top: 10px;
+    margin-top: 14px;
+}
+
+.done-by-info {
+    font-family: var(--serif);
+    font-size: 1.3em;
+    font-weight: 700;
+    line-height: 1.2;
     margin-top: 4px;
 }
 
-/* Color states for timer cards */
-
-/* Waiting — muted purple, dish hasn't started yet (finish-together mode) */
-.timer-card.waiting {
-    background-color: #13101e;
-    border: 1px dashed #7b6faa;
-}
-.timer-card.waiting .timer-countdown {
-    color: #7b6faa;
-}
-.timer-card.waiting .timer-action {
-    font-style: italic;
-    color: #999;
+.keep-open-note {
+    font-size: 0.82em;
+    color: var(--muted);
+    margin: 6px 0 14px;
 }
 
-/* Upcoming — red border, white countdown, calm */
-.timer-card.upcoming {
-    background-color: #181818;
-    border: 1px solid #c8102e;
-}
-.timer-card.upcoming .timer-countdown {
-    color: #ffffff;
+.keep-open-note.warn {
+    color: var(--amber);
 }
 
-/* Imminent — brighter red bg tint, almost time! */
-.timer-card.imminent {
-    background-color: #220810;
-    border: 1px solid #e8193a;
-}
-.timer-card.imminent .timer-countdown {
-    color: #e8193a;
+.timer-hint {
+    font-size: 0.8em;
+    color: var(--faint);
+    margin-top: 2px;
 }
 
-/* "Done" button shown on a fired card — tap to start the next step */
-.btn-done-step {
-    background-color: #2ecc71;
-    color: white;
-    font-size: 1em;
-    padding: 10px 32px;
-    margin-top: 14px;
+
+/* ---- One row per dish ---- */
+
+.timer-card {
+    background-color: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--rule-strong);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.tc-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.tc-text {
+    min-width: 0;
+}
+
+/* "CHICKEN · STEP 1 OF 2" */
+.timer-dish {
+    font-size: 0.72em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+}
+
+/* "Flip" — what to do next */
+.timer-action {
+    font-family: var(--serif);
+    font-size: 1.35em;
+    font-weight: 700;
+    line-height: 1.15;
+    margin: 2px 0;
+    overflow-wrap: anywhere;
+}
+
+/* "at 5:01 PM · then Take out, 2 min later" */
+.timer-sub {
+    font-size: 0.82em;
+    color: var(--muted);
+}
+
+/* Scoreboard-style countdown */
+.timer-countdown {
+    font-family: var(--numeric);
+    font-size: 3em;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Hidden until the row is tapped (or the alarm rings) */
+.tc-more {
+    display: none;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+}
+
+.timer-card.expanded .tc-more,
+.timer-card.fired .tc-more {
+    display: block;
+}
+
+.timer-progress {
+    font-size: 0.8em;
+    color: var(--muted);
+    margin-bottom: 10px;
 }
 
 .card-btns {
     display: flex;
-    gap: 10px;
-    justify-content: center;
-    margin-top: 14px;
+    gap: 8px;
 }
 
-.btn-dish-pause {
-    background-color: #555;
-    color: white;
-    font-size: 0.85em;
-    padding: 7px 18px;
+.card-btns .btn {
+    flex: 1;
 }
 
-.btn-skip-step {
-    background-color: #7a5c00;
-    color: white;
-    font-size: 0.85em;
-    padding: 7px 18px;
+/* Waiting to start — dashed, muted */
+.timer-card.waiting {
+    border-left-style: dashed;
 }
 
-/* Fired — bright red, action needed NOW */
+.timer-card.waiting .timer-action,
+.timer-card.waiting .timer-countdown {
+    color: var(--muted);
+}
+
+/* Counting down */
+.timer-card.upcoming {
+    border-left-color: var(--text);
+}
+
+/* Last 30 seconds */
+.timer-card.imminent {
+    border-left-color: var(--amber);
+}
+
+.timer-card.imminent .timer-countdown {
+    color: var(--amber);
+}
+
+/* Ringing — solid red, white text, readable from across the kitchen */
 .timer-card.fired {
-    background-color: #2a0810;
-    border: 2px solid #c8102e;
-    transform: scale(1.03);
-}
-.timer-card.fired .timer-countdown {
-    color: #c8102e;
-    animation: pulse 0.5s infinite alternate;
+    background-color: var(--red);
+    border-color: var(--red);
+    color: white;
+    cursor: default;
+    animation: alarm-flash 0.8s infinite alternate;
 }
 
-/* Done — green, completed */
+.timer-card.fired .timer-dish,
+.timer-card.fired .timer-sub,
+.timer-card.fired .timer-progress {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.timer-card.fired .tc-more {
+    border-top-color: rgba(255, 255, 255, 0.3);
+}
+
+.timer-card.fired .timer-progress {
+    display: none;
+}
+
+/* The big "Done" button on a ringing row */
+.btn-done-step {
+    background-color: white;
+    color: var(--red-deep);
+    font-size: 1.25em;
+    font-weight: 800;
+    min-height: 56px;
+}
+
+/* Finished */
 .timer-card.done {
-    background-color: #0a1f0f;
-    border: 1px solid #27ae60;
-    opacity: 0.6;
+    border-left-color: var(--green);
+    cursor: default;
 }
+
+.timer-card.done .timer-action {
+    font-family: var(--sans);
+    font-size: 0.95em;
+    font-weight: 500;
+    color: var(--muted);
+}
+
 .timer-card.done .timer-countdown {
-    color: #27ae60;
+    color: var(--green);
+    font-size: 2em;
 }
 
-/* Paused — dimmed with dashed border, signals "frozen" */
+/* Paused — dimmed */
 .timer-card.paused {
-    opacity: 0.5;
-    border-style: dashed;
+    opacity: 0.55;
 }
 
-/* Pulse animation for the "NOW!" text */
-@keyframes pulse {
-    from { opacity: 1; }
-    to { opacity: 0.35; }
+@keyframes alarm-flash {
+    from { background-color: var(--red); }
+    to   { background-color: var(--red-deep); }
+}
+
+
+/* ---- Buttons under the rows ---- */
+
+.timer-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 24px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule);
+}
+
+.timer-buttons .btn {
+    flex: 1;
+}
+
+
+/* ---- Pause overlay ---- */
+
+#pause-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.pause-modal {
+    background-color: var(--surface);
+    border: 1px solid var(--rule-strong);
+    border-top: 4px solid var(--amber);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    text-align: center;
+    width: 100%;
+    max-width: 340px;
+}
+
+.pause-modal-title {
+    font-size: 0.8em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--amber);
+    margin-bottom: 10px;
+}
+
+.pause-stopwatch {
+    font-family: var(--numeric);
+    font-size: 4.5em;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.pause-modal-label {
+    font-size: 0.8em;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 6px;
+}
+
+.btn-resume {
+    width: 100%;
+    min-height: 56px;
+    font-size: 1.15em;
+    margin-top: 22px;
 }
 
 
 /* ========== RESPONSIVE (phones/small screens) ========== */
 
 @media (max-width: 600px) {
+    /* "After [__] min: ✕" on one line, "what to do" full width below it */
     .step-row {
+        grid-template-columns: auto 64px 1fr auto;
+        margin-bottom: 14px;
+    }
+
+    .step-row .step-action {
+        grid-row: 2;
+        grid-column: 1 / -1;
+    }
+
+    .step-row .btn-remove-step {
+        grid-row: 1;
+        grid-column: 4;
+        justify-self: end;
+    }
+
+    .sound-row {
         flex-wrap: wrap;
     }
 
-    .step-action {
-        width: 100%;
+    .sound-label {
+        min-width: 100%;
     }
 
     .timer-countdown {
-        font-size: 2.5em;
+        font-size: 2.6em;
     }
 }

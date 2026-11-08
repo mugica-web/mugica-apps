@@ -1,10 +1,43 @@
-/* Site-wide styles shared by every page: fonts, page layout, sign-in,
-   dashboard and the base .btn class. Each app adds its own stylesheet
-   in apps/<app>/static/. */
+/* Site-wide styles shared by the sign-in page, the dashboard and the
+   Cook Timer: design tokens, fonts, page layout and buttons. Each app adds
+   its own stylesheet in apps/<app>/static/. (Taboo Jr. doesn't use this file.)
+
+   The look is an editorial sports-site style in dark mode: a sturdy serif
+   for headlines, a newspaper sans for everything else, condensed numbers
+   for clocks, small uppercase labels, thin rules instead of boxes, nearly
+   square corners, and colour kept for meaning (red = alarm/stop). */
 
 /* ========== FONTS ========== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;800&display=swap');
+/* Source Serif 4: headlines. Libre Franklin: text and buttons.
+   Barlow Condensed: countdowns (it has fixed-width digits, so numbers don't jitter). */
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700;8..60,800&family=Libre+Franklin:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700&display=swap');
+
+
+/* ========== DESIGN TOKENS ========== */
+
+:root {
+    --bg: #111111;
+    --surface: #1a1a1a;
+    --surface-2: #232323;
+    --rule: #2c2c2c;
+    --rule-strong: #444444;
+
+    --text: #f4f4f2;
+    --muted: #a5a5a1;
+    --faint: #6f6f6c;
+
+    --red: #e5322d;        /* alarms, stop, errors */
+    --red-deep: #a81f1b;
+    --amber: #f2a531;      /* "soon", warnings */
+    --green: #4cbb64;      /* done, success */
+
+    --serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+    --sans: 'Libre Franklin', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --numeric: 'Barlow Condensed', 'Libre Franklin', sans-serif;
+
+    --radius: 3px;
+}
 
 
 /* ========== GENERAL STYLES ========== */
@@ -16,30 +49,49 @@
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background-color: #0f0f0f;
-    color: #e8e8e8;
+    font-family: var(--sans);
+    background-color: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
     padding: 20px;
-    max-width: 800px;
+    max-width: 760px;
     margin: 0 auto;
+    -webkit-font-smoothing: antialiased;
 }
 
+a {
+    color: inherit;
+}
+
+/* Page title — big serif, left-aligned, like a masthead */
 h1 {
-    font-family: 'Playfair Display', Georgia, serif;
-    text-align: center;
-    font-size: 2.2em;
+    font-family: var(--serif);
+    font-size: 2.4em;
     font-weight: 800;
-    letter-spacing: -0.01em;
-    margin-bottom: 10px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 18px 0 6px;
 }
 
-h2 {
-    font-family: 'Playfair Display', Georgia, serif;
-    text-align: center;
-    font-size: 1.3em;
+/* Section heading — small uppercase label under a rule */
+h2,
+.section-label {
+    font-family: var(--sans);
+    font-size: 0.75em;
     font-weight: 700;
-    color: #aaa;
-    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text);
+    border-top: 1px solid var(--rule-strong);
+    padding-top: 10px;
+    margin: 32px 0 14px;
+}
+
+/* A one-line description under the page title */
+.dek {
+    color: var(--muted);
+    font-size: 0.95em;
+    margin-bottom: 8px;
 }
 
 
@@ -49,24 +101,111 @@ h2 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #181818;
-    border: 1px solid #2a2a2a;
-    border-radius: 10px;
-    padding: 8px 16px;
-    margin-bottom: 20px;
-    font-size: 0.9em;
-    color: #888;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.8em;
+    color: var(--muted);
+}
+
+.user-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.user-bar-left span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.back-link {
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .btn-logout {
     background-color: transparent;
-    color: #666;
-    font-size: 0.85em;
-    padding: 6px 12px;
+    color: var(--muted);
+    font-size: 1em;
+    padding: 4px 0;
+    min-height: 0;
 }
 
 .btn-logout:hover {
-    color: #c8102e;
+    color: var(--text);
+    opacity: 1;
+}
+
+
+/* ========== BUTTONS ========== */
+
+.btn {
+    border: 1px solid transparent;
+    padding: 10px 18px;
+    min-height: 44px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 0.95em;
+    font-weight: 700;
+    line-height: 1.2;
+    transition: opacity 0.15s, background-color 0.15s, border-color 0.15s;
+}
+
+.btn:hover {
+    opacity: 0.85;
+}
+
+/* The one main action on a screen */
+.btn-primary {
+    background-color: var(--text);
+    color: var(--bg);
+}
+
+/* Everything else */
+.btn-secondary {
+    background-color: transparent;
+    color: var(--text);
+    border-color: var(--rule-strong);
+}
+
+.btn-secondary:hover {
+    border-color: var(--text);
+    opacity: 1;
+}
+
+/* Stop, delete */
+.btn-danger {
+    background-color: transparent;
+    color: var(--red);
+    border-color: var(--red-deep);
+}
+
+.btn-danger:hover {
+    border-color: var(--red);
+    opacity: 1;
+}
+
+/* Low-key text-only button */
+.btn-text {
+    background-color: transparent;
+    color: var(--muted);
+    padding: 8px 6px;
+}
+
+.btn-text:hover {
+    color: var(--text);
+    opacity: 1;
 }
 
 
@@ -82,67 +221,47 @@ h2 {
 .login-form {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
     gap: 12px;
+    width: 300px;
 }
 
-
-/* ========== DASHBOARD APP GRID ========== */
-
-.app-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 16px;
-    margin-top: 16px;
+.login-form h1 {
+    margin-top: 0;
 }
 
-.app-tile {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    background-color: #181818;
-    border: 1px solid #2a2a2a;
-    border-radius: 16px;
-    padding: 28px 20px;
-    text-decoration: none;
-    color: inherit;
-    transition: border-color 0.2s, background-color 0.2s;
+.login-form .dek {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 18px;
+    margin-bottom: 10px;
 }
 
-.app-tile:hover {
-    border-color: #c8102e;
-    background-color: #1f0a0c;
-}
-
-.app-tile-icon {
-    font-size: 2.5em;
-}
-
-.app-tile-name {
-    font-weight: 700;
+.btn-google {
+    background-color: var(--text);
+    color: var(--bg);
     font-size: 1em;
+    padding: 12px;
+    width: 100%;
 }
 
-.app-tile-desc {
-    font-size: 0.8em;
-    color: #777;
-    text-align: center;
+.auth-error {
+    color: var(--red);
+    font-size: 0.85em;
+    min-height: 1.2em;
 }
 
 
 /* ========== REQUEST ACCESS FORM ========== */
 
 .request-divider {
-    margin-top: 12px;
+    margin-top: 4px;
 }
 
 .btn-request-toggle {
     background: none;
     border: none;
-    color: #666;
-    font-family: 'Inter', sans-serif;
+    color: var(--muted);
+    font-family: var(--sans);
     font-size: 0.85em;
     cursor: pointer;
     text-decoration: underline;
@@ -151,98 +270,98 @@ h2 {
 }
 
 .btn-request-toggle:hover {
-    color: #aaa;
+    color: var(--text);
 }
 
 .request-form {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    width: 280px;
     margin-top: 4px;
 }
 
 .request-input,
 .request-note {
     padding: 10px 12px;
-    border: 1px solid #333;
-    border-radius: 8px;
-    background-color: #1a1a1a;
-    color: #e8e8e8;
-    font-family: 'Inter', sans-serif;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius);
+    background-color: var(--surface);
+    color: var(--text);
+    font-family: var(--sans);
     font-size: 0.95em;
     resize: none;
 }
 
 .request-input::placeholder,
 .request-note::placeholder {
-    color: #555;
+    color: var(--faint);
 }
 
 .btn-request-submit {
-    background-color: #c8102e;
-    color: white;
+    background-color: var(--text);
+    color: var(--bg);
     font-size: 0.95em;
     padding: 10px;
 }
 
 .request-status {
     font-size: 0.85em;
-    text-align: center;
     min-height: 1.2em;
-    color: #888;
+    color: var(--muted);
 }
 
 .request-status.success {
-    color: #2ecc71;
+    color: var(--green);
 }
 
 .request-status.error {
-    color: #c8102e;
+    color: var(--red);
 }
 
 
-/* ========== AUTH SECTION (login/signup) ========== */
+/* ========== DASHBOARD APP GRID ========== */
 
-.auth-form {
-    max-width: 360px;
-    margin: 0 auto;
+.app-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+.app-tile {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 6px;
+    background-color: var(--surface);
+    border: 1px solid var(--rule);
+    border-top: 3px solid var(--text);
+    border-radius: var(--radius);
+    padding: 18px 18px 20px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s, background-color 0.15s;
 }
 
-.btn-google {
-    background-color: #db4437;
-    color: white;
-    font-size: 1em;
-    padding: 12px;
-    width: 100%;
+.app-tile:hover {
+    border-color: var(--rule-strong);
+    border-top-color: var(--red);
+    background-color: var(--surface-2);
 }
 
-.auth-error {
-    color: #c8102e;
+.app-tile-icon {
+    font-size: 1.6em;
+    line-height: 1;
+}
+
+.app-tile-name {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: 1.35em;
+    line-height: 1.15;
+}
+
+.app-tile-desc {
     font-size: 0.85em;
-    text-align: center;
-    min-height: 1.2em;
-}
-
-
-/* ========== BUTTONS ========== */
-
-.btn {
-    border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
-    font-size: 1em;
-    font-weight: 600;
-    transition: opacity 0.2s;
-}
-
-.btn:hover {
-    opacity: 0.85;
+    color: var(--muted);
 }
 
 
@@ -250,6 +369,10 @@ h2 {
 
 @media (max-width: 600px) {
     body {
-        padding: 10px;
+        padding: 14px 16px;
+    }
+
+    h1 {
+        font-size: 2em;
     }
 }

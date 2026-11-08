@@ -19,8 +19,13 @@ Current apps:
   Flask Blueprint registered from `app.py`
 - **Frontend**: Vanilla JS, no bundler
 - **Auth + DB**: Firebase (Google sign-in, Firestore). Compat SDK v10.14.1 via CDN
-- **CSS**: `static/site.css` for the shared look (dark theme, `#0f0f0f` bg,
-  Inter + Playfair Display); each app adds its own stylesheet
+- **CSS**: `static/site.css` for the shared look: an editorial, sports-site
+  style in dark mode. Design tokens are CSS variables on `:root` (colours,
+  `--serif` Source Serif 4 for headlines, `--sans` Libre Franklin for text,
+  `--numeric` Barlow Condensed for clocks). Buttons: `.btn` plus
+  `.btn-primary` / `.btn-secondary` / `.btn-danger` / `.btn-text`. Red means
+  alarm/stop only. Each app adds its own stylesheet; Taboo Jr. has its own
+  look and doesn't load `site.css`
 - **Deployment**: Vercel (`vercel.json` routes everything to `app.py`)
 
 ## Running Locally (Windows, PowerShell)
