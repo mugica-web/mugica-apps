@@ -2,9 +2,9 @@
 """Build Taboo Jr.
 
 Validates src/deck.js, then splices it into src/shell.html to produce the
-single self-contained index.html that gets copied to the website.
+single self-contained index.html, which the site serves directly at /taboo-jr.
 
-    python3 build.py
+    python build.py
 """
 import re, sys, pathlib
 
@@ -76,6 +76,6 @@ if "/* __DECK__ */" not in shell:
     sys.exit("src/shell.html is missing the /* __DECK__ */ marker.")
 
 out = shell.replace("/* __DECK__ */", deck_src.strip())
-(ROOT / "index.html").write_text(out, encoding="utf-8")
+(ROOT / "index.html").write_text(out, encoding="utf-8", newline="\n")
 kb = len(out.encode("utf-8")) / 1024
 print(f"Wrote index.html ({kb:.0f} KB)")

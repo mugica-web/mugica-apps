@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cooking Timer</title>
 
-    <!-- Link to our CSS stylesheet for visual styling -->
-    <link rel="stylesheet" href="/static/style.css">
+    <!-- Site-wide styles first, then this app's own styles on top -->
+    <link rel="stylesheet" href="/static/site.css">
+    <link rel="stylesheet" href="{{ url_for('cook_timer.static', filename='cook_timer.css') }}">
 
     <!-- Firebase SDK (loaded from Google's CDN — no install needed).
          We use the "compat" version which works with simple <script> tags.
@@ -154,20 +155,7 @@
     // ================================================================
 
 
-    // ---- FIREBASE INITIALIZATION ----
-    //
-    // firebase.initializeApp() connects our app to our Firebase project.
-    // The config object contains public keys that identify our project —
-    // they're safe to include in client-side code (security comes from
-    // Firestore rules, not from hiding these keys).
-    firebase.initializeApp({
-        apiKey: "{{ firebase_api_key }}",
-        authDomain: "cook-timer-69256.firebaseapp.com",
-        projectId: "cook-timer-69256",
-        storageBucket: "cook-timer-69256.firebasestorage.app",
-        messagingSenderId: "207322185688",
-        appId: "1:207322185688:web:92edf8b87f61abee85bcad"
-    });
+{% include "partials/firebase_init.js" %}
 
     // Shorthand references so we don't have to type firebase.auth() everywhere
     const auth = firebase.auth();

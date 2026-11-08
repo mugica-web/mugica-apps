@@ -6,9 +6,9 @@ A kid-friendly version of the party game Taboo, for an 8-year-old and an
 11-year-old. One player holds the screen and describes the big word on the
 card; everyone else guesses. The five red words underneath are off limits.
 
-Lives on the family website as a tile on the Cook Timer dashboard. The source
-lives inside the `cook-timer` repo (this folder) so it's versioned and backed up
-alongside the site that serves it.
+One of the apps on mugica-apps, the family site (see `../../CLAUDE.md`). It's
+served at `/taboo-jr` with a tile on the dashboard. Unlike the other apps it has
+no sign-in of its own and no link back to the dashboard.
 
 ## Stack
 
@@ -27,8 +27,8 @@ build.py         — validates the deck, splices it into the shell
 index.html       — GENERATED. Never edit this by hand.
 ```
 
-```bash
-python3 build.py        # → rewrites index.html
+```powershell
+python build.py         # → rewrites index.html
 ```
 
 `build.py` refuses to write `index.html` if a card is malformed, an answer is
@@ -39,16 +39,10 @@ answer anyway.
 
 ## Deploying to the website
 
-`index.html` is copied verbatim into the Flask app:
-
-```bash
-cp index.html ../templates/taboo_jr.html
-```
-
-The route (`/taboo-jr`) already exists in `../app.py`, and the dashboard tile
-is in `../templates/dashboard.html`. Nothing else to
-do — Vercel serves it from there. There is deliberately no "back to dashboard"
-link, matching the other games (browser back button).
+Nothing to copy. `__init__.py` serves this folder's `index.html` as-is at
+`/taboo-jr`, so rebuilding and pushing is the whole deploy. The dashboard tile
+is in `../../templates/dashboard.html`. There is deliberately no "back to
+dashboard" link (browser back button).
 
 ## Card Format
 
