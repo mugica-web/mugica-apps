@@ -28,50 +28,101 @@
     </div>
 
     <!-- ========== SETUP SECTION ========== -->
-    <!-- This is where the user adds dishes and steps BEFORE starting.
+    <!-- Where the user adds dishes and steps BEFORE starting.
          Hidden by default — shown after the user signs in. -->
     <div id="setup-section" style="display: none;">
-        <h2>Plan Your Meal</h2>
 
-        <!-- Timing mode toggle: should everything START or FINISH at the same time? -->
-        <div class="mode-toggle">
-            <span class="mode-label">Timing mode:</span>
-            <div class="toggle-buttons">
-                <!-- When "Start Together" is selected, all dishes begin cooking at once.
-                     Each step fires at its offset from now.
-                     Example: Chicken "flip" at 15 min fires 15 min from now. -->
-                <button id="mode-start" class="btn btn-mode active" onclick="setMode('start')">
-                    Start Together
-                </button>
-                <!-- When "Finish Together" is selected, the app works BACKWARDS so all
-                     dishes finish at the same time. Shorter dishes start later.
-                     Example: If chicken takes 45 min and rice takes 20 min,
-                     rice won't start until 25 min in. -->
-                <button id="mode-finish" class="btn btn-mode" onclick="setMode('finish')">
-                    Finish Together
-                </button>
-                <!-- "Done By" mode lets the user pick a clock time (e.g. 6:00 PM)
-                     and the app works backward so all dishes are done by then. -->
-                <button id="mode-done-by" class="btn btn-mode" onclick="setMode('done-by')">
-                    Done By
-                </button>
-            </div>
-            <p class="mode-description" id="mode-description">
-                All dishes start cooking at the same time.
-            </p>
-            <!-- Time picker — only visible in "done-by" mode -->
-            <div id="done-by-picker" class="done-by-picker" style="display: none;">
-                <label for="done-by-time">Everything done by:</label>
-                <input type="time" id="done-by-time" class="done-by-time-input">
+        <!-- Instructions for first-time users. Remembers whether it was collapsed. -->
+        <details id="how-it-works" class="how-it-works" open>
+            <summary>How it works</summary>
+            <ol>
+                <li>
+                    <strong>Add each dish and its steps.</strong>
+                    A step is <em>what to do</em> and <em>how many minutes after the previous step</em>
+                    to do it. The first step counts from when the dish goes on.
+                    <div class="how-example">
+                        Chicken: after <b>15</b> min → Flip, then after <b>25</b> min → Take out
+                    </div>
+                </li>
+                <li>
+                    <strong>Choose the timing.</strong>
+                    <em>Start together</em> starts every dish now. <em>Finish together</em> tells you
+                    when to start each dish so they're all ready at once: as soon as possible, or by a
+                    time you pick.
+                </li>
+                <li>
+                    <strong>Tap Start Cooking.</strong>
+                    Each dish shows what to do next and counts down to it.
+                </li>
+                <li>
+                    <strong>When the alarm rings, do the step and tap Done.</strong>
+                    It keeps ringing until you do. The next step's timer starts from your tap, so being
+                    a bit late never shortens it.
+                </li>
+                <li>
+                    <strong>Keep this page open with the screen on.</strong>
+                    Alarms can't ring if the phone locks or you switch to another app. On iPhone the
+                    silent switch mutes the alarm, so use ▶ Test at the bottom to check.
+                </li>
+            </ol>
+        </details>
+
+        <!-- ========== SAVED DISHES SECTION ========== -->
+        <!-- Dishes saved to Firestore. Load one to add it to the meal below. -->
+        <div id="saved-section">
+            <h3>Saved Dishes</h3>
+            <div id="saved-dishes-container">
+                <p class="saved-empty">No saved dishes yet. Use the "Save" button on a dish to save it.</p>
             </div>
         </div>
 
-        <!-- Container where dish cards will be added dynamically -->
+        <h2>Plan Your Meal</h2>
+
+        <!-- Container where dish cards are added dynamically -->
         <div id="dishes-container"></div>
 
-        <!-- Buttons to add a dish and to start all timers -->
         <div class="button-row">
             <button onclick="addDish()" class="btn btn-add">+ Add Dish</button>
+        </div>
+
+        <!-- Timing mode. Internally there are three modes:
+               "start"   — every dish starts now
+               "finish"  — dishes finish together, as soon as possible
+               "done-by" — dishes finish together at a clock time
+             The UI shows "finish" and "done-by" as two options under Finish Together. -->
+        <div class="mode-toggle">
+            <span class="mode-label">Timing:</span>
+            <div class="toggle-buttons">
+                <button id="mode-start" class="btn btn-mode active" onclick="setMode('start')">
+                    Start together
+                </button>
+                <button id="mode-finish" class="btn btn-mode" onclick="setMode(finishChoice())">
+                    Finish together
+                </button>
+            </div>
+            <div id="finish-options" class="finish-options" style="display: none;">
+                <label>
+                    <input type="radio" name="finish-when" id="finish-asap" value="finish" checked
+                           onchange="setMode('finish')">
+                    As soon as possible
+                </label>
+                <label>
+                    <input type="radio" name="finish-when" id="finish-by" value="done-by"
+                           onchange="setMode('done-by')">
+                    Ready by
+                    <input type="time" id="done-by-time" class="done-by-time-input"
+                           onfocus="if (timingMode !== 'done-by') setMode('done-by')">
+                </label>
+            </div>
+            <p class="mode-description" id="mode-description">
+                Every dish starts as soon as you tap Start Cooking.
+            </p>
+        </div>
+
+        <!-- Live preview of when each dish starts and is ready, plus any problems -->
+        <div id="plan-preview" class="plan-preview" style="display: none;"></div>
+
+        <div class="button-row">
             <button onclick="startCooking()" class="btn btn-start">Start Cooking!</button>
         </div>
 
@@ -79,7 +130,7 @@
         <div id="sound-settings" class="sound-settings">
             <h3>Alert Sounds</h3>
             <div class="sound-row">
-                <label class="sound-label">30-sec warning:</label>
+                <label class="sound-label" for="warn-sound-select">30-sec warning:</label>
                 <select id="warn-sound-select" class="sound-select" onchange="saveSoundPrefs()">
                     <option value="single-beep">Single beep</option>
                     <option value="double-beep">Double beep</option>
@@ -94,7 +145,7 @@
                 <button onclick="testSound('warn')" class="btn btn-test">&#9654; Test</button>
             </div>
             <div class="sound-row">
-                <label class="sound-label">Step alarm:</label>
+                <label class="sound-label" for="final-sound-select">Step alarm:</label>
                 <select id="final-sound-select" class="sound-select" onchange="saveSoundPrefs()">
                     <option value="single-beep">Single beep</option>
                     <option value="double-beep">Double beep</option>
@@ -108,33 +159,38 @@
                 </select>
                 <button onclick="testSound('final')" class="btn btn-test">&#9654; Test</button>
             </div>
-        </div>
-
-        <!-- ========== SAVED DISHES SECTION ========== -->
-        <!-- Shows dishes previously saved to localStorage. Users can load
-             them into the active setup or delete them. -->
-        <div id="saved-section">
-            <h3>Saved Dishes</h3>
-            <div id="saved-dishes-container">
-                <p class="saved-empty">No saved dishes yet. Use the "Save" button on a dish to save it.</p>
-            </div>
+            <p class="sound-note">
+                The step alarm repeats every few seconds until you tap Done.
+                Can't hear the test? Turn the volume up and, on iPhone, turn off silent mode.
+            </p>
         </div>
     </div>
 
     <!-- ========== TIMER SECTION ========== -->
     <!-- Hidden at first, shown when "Start Cooking" is clicked -->
     <div id="timer-section" style="display: none;">
-        <h2>Cooking In Progress...</h2>
-        <!-- Shows the target finish time when in "done-by" mode -->
-        <p id="done-by-info" class="done-by-info" style="display: none;"></p>
+        <!-- Sticky bar: sound-off warning and the list of alarms that are ringing -->
+        <div class="timer-alerts">
+            <div id="sound-banner" class="sound-banner" style="display: none;">
+                🔇 Sound is off. Tap here to turn it on.
+            </div>
+            <div id="alert-strip" class="alert-strip" style="display: none;"></div>
+        </div>
 
-        <!-- Live countdowns will be displayed here -->
+        <h2 id="timer-heading">Cooking In Progress...</h2>
+        <!-- Shows the target finish time in the "finish together" modes -->
+        <p id="done-by-info" class="done-by-info" style="display: none;"></p>
+        <p id="keep-open-note" class="keep-open-note">
+            Keep this page open with the screen on. Alarms can't ring if the phone locks or you switch apps.
+        </p>
+
+        <!-- Live countdowns are displayed here, one card per dish -->
         <div id="timers-container"></div>
 
-        <!-- Pause and Stop buttons -->
         <div class="timer-buttons">
             <button id="btn-pause" onclick="togglePause()" class="btn btn-pause">Pause All</button>
-            <button onclick="confirmStop()" class="btn btn-stop">Stop & Reset</button>
+            <button onclick="testSound('final')" class="btn btn-test">&#9654; Test sound</button>
+            <button id="btn-stop" onclick="confirmStop()" class="btn btn-stop">Stop & Reset</button>
         </div>
     </div>
 
@@ -151,7 +207,7 @@
 
     <script>
     // ================================================================
-    // JAVASCRIPT — All the interactive logic for our cooking timer
+    // JAVASCRIPT — All the interactive logic for the cooking timer
     // ================================================================
 
 
@@ -162,7 +218,7 @@
     const db = firebase.firestore();
 
 
-    // ---- AUTHENTICATION FUNCTIONS ----
+    // ---- AUTHENTICATION ----
 
     // logOut() — Signs the user out and returns to the login page.
     function logOut() {
@@ -171,12 +227,8 @@
         });
     }
 
-
-    // ---- AUTH STATE LISTENER ----
-    //
     // onAuthStateChanged fires whenever the user logs in or out.
-    // Since auth is handled by the login page, here we just:
-    //   - Logged in  → show the app (or restore an in-progress timer session)
+    //   - Logged in  → show the app (or restore an in-progress cook)
     //   - Logged out → redirect back to the login page
     //
     // authInitialized guards against a spurious null emission that Firebase
@@ -191,14 +243,12 @@
             document.getElementById("user-bar").style.display = "flex";
             document.getElementById("user-email").textContent = user.email || user.displayName || "User";
             setupDishesListener(user);
-            // Restore an in-progress timer if one was saved; otherwise show setup
+            // Restore an in-progress cook if one was saved; otherwise show setup
             if (!restoreTimerState()) {
                 document.getElementById("setup-section").style.display = "block";
+                renderPlanPreview();
             }
         } else if (authInitialized) {
-            // Only redirect if we were previously confirmed as logged in.
-            // Ignores the initial null that Firebase sometimes sends before
-            // resolving the cached session.
             window.location.href = "/";
         }
     });
@@ -206,843 +256,79 @@
 
     // ---- APP VARIABLES ----
 
-    // This counter gives each dish a unique ID so we can tell them apart.
+    // Gives each setup dish card a unique ID so we can tell them apart.
     let dishCounter = 0;
 
-    // This will hold our setInterval ID so we can stop the countdown loop.
+    // The setInterval ID of the countdown loop (null when not cooking).
     let timerInterval = null;
 
-    // Data model for active cooking timers:
+    // Data model for an in-progress cook:
     //
     // activeDishes = [
     //   {
     //     name: "Chicken",
-    //     currentStep: 0,        // index of the step currently counting down
-    //     done: false,           // true when all steps have fired
+    //     currentStep: 0,          // index of the step currently counting down
+    //     done: false,             // true once the last step is acknowledged
+    //     finishedAt: null,        // Date the dish was finished
+    //     paused: false,           // this one dish is paused
+    //     pauseStartTime: null,
     //     steps: [
-    //       { action: "Put in oven", fireTime: Date, fired: false, isWait: false },
-    //       { action: "Flip",        fireTime: Date, fired: false, isWait: false },
+    //       // fireTime = when the alarm for this step rings.
+    //       // fired = the alarm has rung (it keeps ringing until Done is tapped).
+    //       // isWait = auto-inserted "Start <dish>" step for dishes that start later.
+    //       { action: "Start Chicken", fireTime: Date, fired: false, warned: false, isWait: true },
+    //       { action: "Flip",          fireTime: Date, fired: false, warned: false, isWait: false },
     //     ]
     //   }
     // ]
     let activeDishes = [];
 
-    // Timing mode: "start" = all dishes start together,
-    //              "finish" = all dishes finish together,
-    //              "done-by" = all dishes done by a specific clock time.
+    // "start" | "finish" | "done-by" — see the comment on the mode toggle in the HTML.
     let timingMode = "start";
 
-    // Cache of saved dishes from Firestore.
-    // Each item: { id: "firestore-doc-id", name: "Pasta", steps: [...] }
-    // This is kept in sync automatically by the onSnapshot listener.
-    let cachedSavedDishes = [];
+    // Text shown under the heading while cooking, e.g. "Everything ready by 6:00 PM"
+    let doneByText = "";
 
-    // Holds the Firestore listener cleanup function so we can
-    // unsubscribe when the user logs out or switches accounts.
+    // The dishes as typed in setup ({ name, steps: [{ action, minutes }] }).
+    // Saved with the cook so the setup cards come back after a reload.
+    let setupSnapshot = [];
+
+    // Cache of saved dishes from Firestore, kept in sync by onSnapshot.
+    // Each item: { id: "firestore-doc-id", name: "Pasta", steps: [...] }
+    let cachedSavedDishes = [];
     let unsubscribeDishes = null;
 
-    // Wake Lock — prevents the phone/laptop screen from going to sleep
-    // while timers are running. null when not active.
+    // Wake Lock — keeps the screen on while cooking. wakeLockFailed is true
+    // when the browser refused or doesn't support it.
     let wakeLock = null;
+    let wakeLockFailed = false;
 
-    // Shared AudioContext — created on the "Start Cooking" tap so mobile
-    // browsers allow it. A new AudioContext created inside a timer callback
-    // (not a user gesture) is blocked silently on iOS and Android.
+    // Shared AudioContext. Browsers (especially on phones) only let a page
+    // make sound after the user taps something, so this is created/resumed
+    // inside tap handlers — see unlockAudio().
     let audioCtx = null;
 
-    // Pause state — when true, all countdowns freeze in place.
-    // pauseStartTime records WHEN the pause began, so we can shift
-    // all fire times forward by the paused duration when resuming.
+    // Pause All state. pauseStartTime records WHEN the pause began, so we can
+    // shift all fire times forward by the paused duration when resuming.
     let isPaused = false;
     let pauseStartTime = null;
 
-
-    // setMode(mode) — Switches between "start together" and "finish together".
-    // Updates the button styling and description text.
-    function setMode(mode) {
-        timingMode = mode;
-
-        // Update button styles — "active" class highlights the selected one
-        document.getElementById("mode-start").className =
-            "btn btn-mode" + (mode === "start" ? " active" : "");
-        document.getElementById("mode-finish").className =
-            "btn btn-mode" + (mode === "finish" ? " active" : "");
-        document.getElementById("mode-done-by").className =
-            "btn btn-mode" + (mode === "done-by" ? " active" : "");
-
-        // Update the description text below the toggle
-        const desc = document.getElementById("mode-description");
-        if (mode === "start") {
-            desc.textContent = "All dishes start cooking at the same time.";
-        } else if (mode === "finish") {
-            desc.textContent = "All dishes finish at the same time. Shorter dishes start later.";
-        } else {
-            desc.textContent = "Pick a time — the app tells you when to start each dish.";
-        }
-
-        // Show/hide the time picker (only visible in "done-by" mode)
-        const picker = document.getElementById("done-by-picker");
-        picker.style.display = (mode === "done-by") ? "block" : "none";
-
-        // Set a default time when first switching to done-by mode
-        // (round up to the next 15-minute mark, plus 1 hour)
-        const timeInput = document.getElementById("done-by-time");
-        if (mode === "done-by" && !timeInput.value) {
-            const now = new Date();
-            now.setHours(now.getHours() + 1);
-            now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
-            const hh = String(now.getHours()).padStart(2, "0");
-            const mm = String(now.getMinutes()).padStart(2, "0");
-            timeInput.value = hh + ":" + mm;
-        }
-    }
+    // Alarm timing
+    const WARNING_SECONDS = 30;     // heads-up beep this long before a step
+    const ALARM_REPEAT_MS = 4000;   // a ringing alarm repeats this often
+    let lastAlarmAt = 0;
 
 
-    // ---- SETUP FUNCTIONS ----
+    // ---- SMALL HELPERS ----
 
-    // addDish() — Creates a new dish card in the setup section.
-    // Called when the user clicks "+ Add Dish".
-    function addDish() {
-        dishCounter++;
-        const dishId = dishCounter;
-
-        // Create a new <div> element for this dish
-        const dishDiv = document.createElement("div");
-        dishDiv.className = "dish-card";
-        dishDiv.id = "dish-" + dishId;
-
-        // Set the HTML inside the dish card.
-        // It includes:
-        //   - A text input for the dish name
-        //   - A container for steps
-        //   - A button to add steps
-        //   - A button to remove the dish
-        dishDiv.innerHTML =
-            '<div class="dish-header">' +
-                '<input type="text" placeholder="Dish name (e.g. Chicken)" class="dish-name">' +
-                '<div class="dish-header-buttons">' +
-                    '<button onclick="saveDish(' + dishId + ')" class="btn btn-save">Save</button>' +
-                    '<button onclick="removeDish(' + dishId + ')" class="btn btn-remove">Remove</button>' +
-                '</div>' +
-            '</div>' +
-            '<div class="steps-container" id="steps-' + dishId + '"></div>' +
-            '<button onclick="addStep(' + dishId + ')" class="btn btn-add-step">+ Add Step</button>';
-
-        // Append the dish card to the dishes container
-        document.getElementById("dishes-container").appendChild(dishDiv);
-
-        // Automatically add one step to get the user started
-        addStep(dishId);
-    }
-
-
-    // addStep(dishId) — Adds a new step row to a dish.
-    // Each step has: an action description and a time in minutes.
-    function addStep(dishId) {
-        const stepsContainer = document.getElementById("steps-" + dishId);
-
-        const stepDiv = document.createElement("div");
-        stepDiv.className = "step-row";
-
-        stepDiv.innerHTML =
-            '<input type="text" placeholder="Action (e.g. Flip chicken)" class="step-action">' +
-            '<input type="number" placeholder="Min" min="0" step="0.1" class="step-minutes" title="How long this step takes (decimals OK, e.g. 2.5 = 2m 30s)">' +
-            '<span class="step-label">min</span>' +
-            '<button onclick="this.parentElement.remove()" class="btn btn-remove-step">✕</button>';
-
-        stepsContainer.appendChild(stepDiv);
-    }
-
-
-    // removeDish(dishId) — Removes an entire dish card from the page.
-    function removeDish(dishId) {
-        const dish = document.getElementById("dish-" + dishId);
-        if (dish) {
-            dish.remove();
-        }
-    }
-
-
-    // ---- COOKING / TIMER FUNCTIONS ----
-
-    // startCooking() — Reads all dishes and steps, builds the activeDishes
-    // array, and switches to the timer view.
-    function startCooking() {
-        activeDishes = [];
-        const now = new Date();
-
-        // Find all dish cards on the page
-        const dishCards = document.querySelectorAll(".dish-card");
-
-        if (dishCards.length === 0) {
-            alert("Add at least one dish first!");
-            return;
-        }
-
-        // First pass: collect all dishes and their steps.
-        // We need ALL the data before calculating times, because "finish together"
-        // mode needs to know the longest dish duration first.
-        const rawDishes = [];
-
-        dishCards.forEach(function(card) {
-            const dishName = card.querySelector(".dish-name").value || "Unnamed Dish";
-            const stepRows = card.querySelectorAll(".step-row");
-            const steps = [];
-
-            stepRows.forEach(function(row) {
-                const action = row.querySelector(".step-action").value || "Do something";
-                // parseFloat instead of parseInt — this handles decimals like 2.5
-                const minutes = parseFloat(row.querySelector(".step-minutes").value) || 0;
-                steps.push({ action: action, minutes: minutes });
-            });
-
-            if (steps.length > 0) {
-                // Each step's "minutes" is a DURATION (how long that step takes).
-                // Total cooking time = sum of all step durations.
-                //   Example: "Boil water" 5 min + "Cook pasta" 10 min + "Drain" 1 min = 16 min total
-                const totalMinutes = steps.reduce(function(sum, s) { return sum + s.minutes; }, 0);
-                rawDishes.push({ name: dishName, steps: steps, totalMinutes: totalMinutes });
-            }
-        });
-
-        if (rawDishes.length === 0) {
-            alert("Add at least one step to a dish!");
-            return;
-        }
-
-        // For "finish together" mode, find the longest total cooking time.
-        // All dishes will be aligned so they finish at the same moment.
-        const overallMax = Math.max(...rawDishes.map(function(d) { return d.totalMinutes; }));
-
-        // For "done-by" mode, calculate how many minutes until the target time.
-        // This replaces overallMax as the anchor — instead of aligning to the
-        // longest dish, we align everything to a specific clock time.
-        let totalAvailableMinutes = overallMax; // default for non-done-by modes
-
-        if (timingMode === "done-by") {
-            const timeInput = document.getElementById("done-by-time");
-            if (!timeInput.value) {
-                alert("Pick a target time first!");
-                return;
-            }
-
-            // Parse the time input (e.g. "18:00") into a Date for today
-            const parts = timeInput.value.split(":");
-            const targetDate = new Date();
-            targetDate.setHours(parseInt(parts[0]), parseInt(parts[1]), 0, 0);
-
-            // If the target time has already passed today, assume tomorrow
-            if (targetDate <= now) {
-                targetDate.setDate(targetDate.getDate() + 1);
-            }
-
-            totalAvailableMinutes = (targetDate - now) / 60000;
-
-            // Check that there's enough time for the longest dish
-            const longestDish = rawDishes.reduce(function(longest, d) {
-                return d.totalMinutes > longest.totalMinutes ? d : longest;
-            }, rawDishes[0]);
-
-            if (longestDish.totalMinutes > totalAvailableMinutes) {
-                const needed = Math.ceil(longestDish.totalMinutes);
-                const available = Math.floor(totalAvailableMinutes);
-                alert(
-                    '"' + longestDish.name + '" needs ' + needed + ' min, ' +
-                    "but there are only " + available + " min until " +
-                    formatTimeForDisplay(targetDate) + ".\n\n" +
-                    "Pick a later time or shorten your dishes."
-                );
-                return;
-            }
-        }
-
-        // Second pass: build the activeDishes array with fire times.
-        rawDishes.forEach(function(dish) {
-            // In "start together" mode, the delay is 0 — everything starts now.
-            // In "finish together" mode, shorter dishes are delayed so they
-            // finish when the longest dish finishes.
-            // In "done-by" mode, dishes are delayed so they all finish by the
-            // target clock time (totalAvailableMinutes replaces overallMax).
-            //   Example: longest dish = 45 min total, this dish = 16 min total
-            //            delay = 45 - 16 = 29 min (this dish starts 29 min late)
-            let delayMinutes;
-            if (timingMode === "start") {
-                delayMinutes = 0;
-            } else if (timingMode === "finish") {
-                delayMinutes = overallMax - dish.totalMinutes;
-            } else {
-                // done-by: use the available time until target as the anchor
-                delayMinutes = totalAvailableMinutes - dish.totalMinutes;
-            }
-
-            const timerSteps = [];
-
-            // If in "finish together" mode and this dish has a delay,
-            // insert a "waiting" step at the front. This counts down until
-            // the dish actually needs to start cooking.
-            if (delayMinutes > 0) {
-                const waitFireTime = new Date(now.getTime() + delayMinutes * 60 * 1000);
-                timerSteps.push({
-                    action: "Start " + dish.name,
-                    fireTime: waitFireTime,
-                    fired: false,
-                    warned: false,
-                    isWait: true    // flag so we can style it differently
-                });
-            }
-
-            // Add the actual cooking steps with cumulative fire times.
-            // Each step fires after all previous steps have completed.
-            //   Example: step durations are 5, 10, 1 minutes
-            //            fire times: 5 min, 15 min (5+10), 16 min (5+10+1)
-            //   With a delay of 29 min:
-            //            fire times: 34 min, 44 min, 45 min
-            let cumulativeMinutes = delayMinutes;
-
-            dish.steps.forEach(function(step) {
-                // Add this step's duration to the running total
-                cumulativeMinutes += step.minutes;
-
-                const fireTime = new Date(now.getTime() + cumulativeMinutes * 60 * 1000);
-
-                timerSteps.push({
-                    action: step.action,
-                    fireTime: fireTime,
-                    fired: false,
-                    warned: false,
-                    isWait: false
-                });
-            });
-
-            activeDishes.push({
-                name: dish.name,
-                currentStep: 0,     // start at the first step
-                done: false,
-                paused: false,
-                pauseStartTime: null,
-                steps: timerSteps
-            });
-        });
-
-        // Ask the browser for notification permission.
-        if ("Notification" in window && Notification.permission === "default") {
-            Notification.requestPermission();
-        }
-
-        // Switch from setup view to timer view
-        document.getElementById("setup-section").style.display = "none";
-        document.getElementById("timer-section").style.display = "block";
-
-        // In "done-by" mode, show the target finish time in the timer view
-        const doneByInfo = document.getElementById("done-by-info");
-        if (timingMode === "done-by") {
-            const parts = document.getElementById("done-by-time").value.split(":");
-            const targetDate = new Date();
-            targetDate.setHours(parseInt(parts[0]), parseInt(parts[1]), 0, 0);
-            if (targetDate <= now) {
-                targetDate.setDate(targetDate.getDate() + 1);
-            }
-            doneByInfo.textContent = "Everything done by " + formatTimeForDisplay(targetDate);
-            doneByInfo.style.display = "block";
-        } else {
-            doneByInfo.style.display = "none";
-        }
-
-        // Build the timer display — one card per dish
-        renderDishes();
-
-        // Start the countdown loop — runs every second (1000 milliseconds)
-        timerInterval = setInterval(updateTimers, 1000);
-
-        // Unlock audio on mobile — must be done during a user gesture (this button tap).
-        // Once created here, the context stays unlocked for the session.
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        } else if (audioCtx.state === "suspended") {
-            audioCtx.resume();
-        }
-
-        // Keep the screen awake while cooking
-        requestWakeLock();
-    }
-
-
-    // renderDishes() — Creates one timer card per dish, showing only
-    // the current step for each dish.
-    function renderDishes() {
-        const container = document.getElementById("timers-container");
-        container.innerHTML = "";
-
-        activeDishes.forEach(function(dish, index) {
-            const div = document.createElement("div");
-            div.id = "dish-timer-" + index;
-            container.appendChild(div);
-
-            // Render the current step into this dish's card
-            renderDishCard(index);
+    // escapeHtml(text) — Makes user-typed text safe to put inside innerHTML.
+    function escapeHtml(text) {
+        return String(text).replace(/[&<>"']/g, function(c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
         });
     }
 
-
-    // renderDishCard(dishIndex) — Updates a single dish's timer card
-    // to show its current step. Called on initial render and when
-    // advancing to the next step.
-    function renderDishCard(dishIndex) {
-        const dish = activeDishes[dishIndex];
-        const container = document.getElementById("dish-timer-" + dishIndex);
-        if (!container) return;
-
-        // If all steps are done, show a completed card
-        if (dish.done) {
-            container.innerHTML =
-                '<div class="timer-card done">' +
-                    '<div class="timer-dish">' + dish.name + '</div>' +
-                    '<div class="timer-action">All done!</div>' +
-                    '<div class="timer-countdown">Done</div>' +
-                    '<div class="timer-progress">All steps completed</div>' +
-                '</div>';
-            return;
-        }
-
-        const step = dish.steps[dish.currentStep];
-
-        // Count only real cooking steps (exclude the auto-inserted wait step)
-        // so progress shows "Step 1 of 3" not "Step 2 of 4"
-        const hasWait = dish.steps[0].isWait;
-        const cookingSteps = hasWait ? dish.steps.length - 1 : dish.steps.length;
-        const cookingStepNumber = hasWait
-            ? dish.currentStep       // wait is index 0, so first cooking step is index 1 → display 1
-            : dish.currentStep + 1;
-
-        // Determine the CSS class based on whether this is a "wait" step
-        const cardClass = step.isWait ? "timer-card waiting" : "timer-card upcoming";
-
-        // Show which step we're on (e.g., "Step 2 of 3")
-        const progressText = step.isWait
-            ? "Waiting to start..."
-            : "Step " + cookingStepNumber + " of " + cookingSteps;
-
-        const pauseLabel = dish.paused ? "&#9654; Resume" : "&#9646;&#9646; Pause";
-        container.innerHTML =
-            '<div class="' + cardClass + (dish.paused ? " paused" : "") + '">' +
-                '<div class="timer-dish">' + dish.name + '</div>' +
-                '<div class="timer-action">' + step.action + '</div>' +
-                '<div class="timer-countdown" id="countdown-' + dishIndex + '">--:--</div>' +
-                '<div class="timer-progress">' + progressText + '</div>' +
-                '<div class="card-btns">' +
-                    '<button class="btn btn-dish-pause" id="btn-dish-pause-' + dishIndex + '" onclick="toggleDishPause(' + dishIndex + ')">' + pauseLabel + '</button>' +
-                    '<button class="btn btn-skip-step" onclick="skipDishStep(' + dishIndex + ')">&#9197; Skip</button>' +
-                '</div>' +
-            '</div>';
-    }
-
-
-    // updateTimers() — Called every second by setInterval.
-    // For each dish, counts down the current step. When it fires,
-    // advances to the next step in that dish's queue.
-    function updateTimers() {
-        // When paused, skip all updates — countdowns stay frozen
-        if (isPaused) return;
-
-        const now = new Date();
-        let allDone = true;
-
-        activeDishes.forEach(function(dish, dishIndex) {
-            // Skip dishes that are fully completed
-            if (dish.done) return;
-
-            allDone = false;
-
-            // Skip dishes that are individually paused
-            if (dish.paused) return;
-
-            const step = dish.steps[dish.currentStep];
-            const countdownEl = document.getElementById("countdown-" + dishIndex);
-            const container = document.getElementById("dish-timer-" + dishIndex);
-
-            if (!countdownEl || !container) return;
-
-            // Get the card element (the first child of the container div)
-            const cardEl = container.querySelector(".timer-card");
-
-            // Calculate remaining time in seconds
-            const remaining = Math.round((step.fireTime - now) / 1000);
-
-            if (remaining <= 0 && !step.fired) {
-                // STEP FIRED! — Time to alert the user
-                step.fired = true;
-                step.firedAt = new Date();
-                countdownEl.textContent = "NOW!";
-
-                if (cardEl) cardEl.className = "timer-card fired";
-
-                // Play beep and send notification (skip beep for wait steps)
-                if (!step.isWait) {
-                    playBeep();
-                }
-                sendNotification(dish.name, step.action);
-
-                if (cardEl) {
-                    const doneBtn = document.createElement("button");
-                    doneBtn.className = "btn btn-done-step";
-                    doneBtn.textContent = "Done";
-                    doneBtn.onclick = function() { manualAdvanceDish(dishIndex); };
-                    cardEl.appendChild(doneBtn);
-                }
-
-            } else if (step.fired) {
-                // Step is waiting for acknowledgment. Re-add the Done button if it
-                // was lost (e.g. the card was re-rendered after a page reload).
-                if (cardEl && !cardEl.querySelector(".btn-done-step")) {
-                    countdownEl.textContent = "NOW!";
-                    cardEl.className = "timer-card fired" + (dish.paused ? " paused" : "");
-                    const doneBtn = document.createElement("button");
-                    doneBtn.className = "btn btn-done-step";
-                    doneBtn.textContent = "Done";
-                    doneBtn.onclick = function() { manualAdvanceDish(dishIndex); };
-                    cardEl.appendChild(doneBtn);
-                }
-
-            } else {
-                // Timer is still counting down
-                const mins = Math.floor(remaining / 60);
-                const secs = remaining % 60;
-                countdownEl.textContent =
-                    String(mins).padStart(2, "0") + ":" +
-                    String(secs).padStart(2, "0");
-
-                // Color-code based on urgency, and fire the 30-second warning beep
-                if (cardEl) {
-                    if (step.isWait) {
-                        cardEl.className = "timer-card waiting";
-                    } else if (remaining <= 30) {
-                        cardEl.className = "timer-card imminent";
-                        // Play a short warning beep once when the step first hits 30s
-                        if (!step.warned) {
-                            step.warned = true;
-                            playWarningBeep();
-                        }
-                    } else {
-                        cardEl.className = "timer-card upcoming";
-                    }
-                }
-            }
-        });
-
-        // Sort timer cards by urgency so the most important dish is
-        // always at the top. Fired (NOW!) dishes go first, then by
-        // soonest fire time, and done dishes sink to the bottom.
-        const timersContainer = document.getElementById("timers-container");
-        const sortOrder = activeDishes.map(function(dish, index) {
-            if (dish.done) {
-                // Done dishes go to the bottom
-                return { index: index, sortKey: Infinity };
-            }
-            const step = dish.steps[dish.currentStep];
-            if (step.fired) {
-                // Fired (NOW!) dishes go to the very top
-                return { index: index, sortKey: -Infinity };
-            }
-            // Active dishes sort by soonest fire time
-            return { index: index, sortKey: step.fireTime.getTime() };
-        });
-
-        sortOrder.sort(function(a, b) { return a.sortKey - b.sortKey; });
-
-        // Reorder the DOM children. appendChild on an existing node
-        // just moves it — no re-creation or flickering.
-        sortOrder.forEach(function(item) {
-            const el = document.getElementById("dish-timer-" + item.index);
-            if (el) timersContainer.appendChild(el);
-        });
-
-        // Save state on every tick so navigation/refresh can restore the session
-        saveTimerState();
-
-        // If every dish is done, stop the interval loop and clear the saved state
-        if (allDone) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            localStorage.removeItem("cookTimerState");
-        }
-    }
-
-
-    // manualAdvanceDish(dishIndex) — Called when the user taps "Done".
-    // Resets all remaining unfired steps to start from NOW, preserving their
-    // scheduled durations relative to each other. This guarantees the next step
-    // always gets its full countdown from the moment Done is tapped, regardless
-    // of how long the user waited to acknowledge.
-    function manualAdvanceDish(dishIndex) {
-        // Tapping "Done" is a user gesture — use it to unlock audio if not yet done
-        if (!audioCtx) {
-            try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
-        } else if (audioCtx.state === "suspended") {
-            audioCtx.resume();
-        }
-
-        const dish = activeDishes[dishIndex];
-        const step = dish.steps[dish.currentStep];
-        const now = new Date();
-
-        // Anchor future steps to now using their offsets from the current step's
-        // fire time. Using step.fireTime (not step.firedAt) means this works even
-        // when firedAt is null (e.g. state loaded from an older save).
-        const anchorTime = step.fireTime.getTime();
-        dish.steps.forEach(function(s) {
-            if (!s.fired) {
-                s.fireTime = new Date(now.getTime() + (s.fireTime.getTime() - anchorTime));
-            }
-        });
-
-        advanceDish(dishIndex);
-    }
-
-
-    // toggleDishPause(dishIndex) — Pauses or resumes a single dish's timer.
-    function toggleDishPause(dishIndex) {
-        const dish = activeDishes[dishIndex];
-        if (dish.done || isPaused) return;
-
-        const btn = document.getElementById("btn-dish-pause-" + dishIndex);
-        const container = document.getElementById("dish-timer-" + dishIndex);
-        const card = container ? container.querySelector(".timer-card") : null;
-
-        if (!dish.paused) {
-            dish.paused = true;
-            dish.pauseStartTime = new Date();
-            if (card) card.classList.add("paused");
-            if (btn) btn.innerHTML = "&#9654; Resume";
-        } else {
-            const now = new Date();
-            const pausedDuration = now.getTime() - dish.pauseStartTime.getTime();
-            dish.steps.forEach(function(step) {
-                if (!step.fired) {
-                    step.fireTime = new Date(step.fireTime.getTime() + pausedDuration);
-                }
-            });
-            dish.paused = false;
-            dish.pauseStartTime = null;
-            if (card) card.classList.remove("paused");
-            if (btn) btn.innerHTML = "&#9646;&#9646; Pause";
-        }
-    }
-
-
-    // skipDishStep(dishIndex) — Skips the current step immediately.
-    // If the step hasn't fired yet, shifts remaining steps back by the time saved.
-    function skipDishStep(dishIndex) {
-        const dish = activeDishes[dishIndex];
-        if (dish.done) return;
-
-        const step = dish.steps[dish.currentStep];
-        const now = new Date();
-
-        if (step.fired) {
-            // Step already fired — behaves like pressing Done
-            manualAdvanceDish(dishIndex);
-            return;
-        }
-
-        // Step hasn't fired yet — pull remaining steps forward by time saved
-        const timeSaved = step.fireTime.getTime() - now.getTime();
-        step.fired = true;
-        step.firedAt = now;
-
-        dish.steps.forEach(function(s) {
-            if (!s.fired) {
-                s.fireTime = new Date(s.fireTime.getTime() - timeSaved);
-            }
-        });
-
-        // Resume if this dish was individually paused
-        if (dish.paused) {
-            dish.paused = false;
-            dish.pauseStartTime = null;
-        }
-
-        advanceDish(dishIndex);
-    }
-
-
-    // advanceDish(dishIndex) — Moves a dish to its next step, or marks
-    // it as done if there are no more steps.
-    function advanceDish(dishIndex) {
-        const dish = activeDishes[dishIndex];
-
-        if (dish.currentStep < dish.steps.length - 1) {
-            // Move to the next step
-            dish.currentStep++;
-            // Re-render just this dish's card with the new step
-            renderDishCard(dishIndex);
-        } else {
-            // No more steps — this dish is fully done
-            dish.done = true;
-            renderDishCard(dishIndex);
-        }
-    }
-
-
-    // ---- SOUND SYSTEM ----
-    // Selected alarm types — loaded from localStorage, saved on change.
-    let selectedWarnSound = "single-beep";
-    let selectedFinalSound = "double-beep";
-
-    function loadSoundPrefs() {
-        selectedWarnSound  = localStorage.getItem("warnSound")  || "single-beep";
-        selectedFinalSound = localStorage.getItem("finalSound") || "double-beep";
-        const warnSel  = document.getElementById("warn-sound-select");
-        const finalSel = document.getElementById("final-sound-select");
-        if (warnSel)  warnSel.value  = selectedWarnSound;
-        if (finalSel) finalSel.value = selectedFinalSound;
-    }
-
-    function saveSoundPrefs() {
-        selectedWarnSound  = document.getElementById("warn-sound-select").value;
-        selectedFinalSound = document.getElementById("final-sound-select").value;
-        localStorage.setItem("warnSound",  selectedWarnSound);
-        localStorage.setItem("finalSound", selectedFinalSound);
-    }
-
-    // testSound(which) — previews the currently selected sound.
-    // Temporarily creates an AudioContext if one doesn't exist yet.
-    function testSound(which) {
-        if (!audioCtx) {
-            try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return; }
-        } else if (audioCtx.state === "suspended") {
-            audioCtx.resume();
-        }
-        const type = which === "warn" ? selectedWarnSound : selectedFinalSound;
-        playSound(type);
-    }
-
-    // playSound(type) — plays one of the named alarm sounds using Web Audio API.
-    function playSound(type) {
-        if (!audioCtx) return;
-        const ctx = audioCtx;
-        const t = ctx.currentTime;
-
-        // Helper: schedule a single tone burst
-        function tone(freq, start, dur, gainVal, waveType) {
-            waveType = waveType || "sine";
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.frequency.value = freq;
-            osc.type = waveType;
-            gain.gain.setValueAtTime(gainVal, t + start);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + start + dur);
-            osc.start(t + start);
-            osc.stop(t + start + dur + 0.05);
-        }
-
-        try {
-            switch (type) {
-                case "single-beep":
-                    tone(880, 0, 0.35, 1.0);
-                    break;
-
-                case "double-beep":
-                    tone(880, 0,    0.3, 1.0);
-                    tone(880, 0.42, 0.3, 1.0);
-                    break;
-
-                case "triple-beep":
-                    tone(880, 0,    0.25, 1.0);
-                    tone(880, 0.35, 0.25, 1.0);
-                    tone(880, 0.70, 0.25, 1.0);
-                    break;
-
-                case "chime":
-                    // Soft triangle-wave chime — pleasant, distinct from beeps
-                    tone(1047, 0, 0.6, 0.9, "triangle");
-                    tone(784,  0.25, 0.5, 0.6, "triangle");
-                    break;
-
-                case "rising":
-                    // Frequency sweep from 330 Hz up to 1100 Hz over 0.7s
-                    (function() {
-                        const osc  = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-                        osc.type = "sine";
-                        osc.frequency.setValueAtTime(330, t);
-                        osc.frequency.exponentialRampToValueAtTime(1100, t + 0.7);
-                        gain.gain.setValueAtTime(1.0, t);
-                        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
-                        osc.start(t);
-                        osc.stop(t + 0.8);
-                    })();
-                    break;
-
-                case "bell":
-                    // Bell: fast attack, slow exponential decay
-                    (function() {
-                        const osc  = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-                        osc.type = "sine";
-                        osc.frequency.value = 1047;
-                        gain.gain.setValueAtTime(1.0, t);
-                        gain.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
-                        osc.start(t);
-                        osc.stop(t + 1.9);
-                    })();
-                    break;
-
-                case "kitchen-timer":
-                    // 5 rapid beeps — classic kitchen timer
-                    for (var i = 0; i < 5; i++) {
-                        tone(1000, i * 0.22, 0.15, 1.0);
-                    }
-                    break;
-
-                case "siren":
-                    // Rapid alternating tones — hard to miss
-                    (function() {
-                        var cycles = 6;
-                        for (var i = 0; i < cycles; i++) {
-                            tone(600, i * 0.18,       0.15, 1.0);
-                            tone(900, i * 0.18 + 0.09, 0.15, 1.0);
-                        }
-                    })();
-                    break;
-
-                case "buzz":
-                    // Harsh square-wave buzz — very hard to ignore
-                    tone(220, 0,    0.4, 1.0, "square");
-                    tone(220, 0.55, 0.4, 1.0, "square");
-                    break;
-
-                default:
-                    tone(880, 0, 0.3, 1.0);
-            }
-        } catch (e) {
-            console.log("Could not play sound:", e);
-        }
-    }
-
-    // playBeep() — fires when a step alarm triggers.
-    function playBeep() {
-        if ("vibrate" in navigator) {
-            navigator.vibrate([200, 100, 200]);
-        }
-        playSound(selectedFinalSound);
-    }
-
-    // playWarningBeep() — fires 30 seconds before a step.
-    function playWarningBeep() {
-        if ("vibrate" in navigator) {
-            navigator.vibrate([100]);
-        }
-        playSound(selectedWarnSound);
-    }
-
-
-    // formatTimeForDisplay(date) — Formats a Date as "6:00 PM" for display.
+    // formatTimeForDisplay(date) — "6:00 PM"
     function formatTimeForDisplay(date) {
         let hours = date.getHours();
         const minutes = String(date.getMinutes()).padStart(2, "0");
@@ -1052,35 +338,772 @@
         return hours + ":" + minutes + " " + ampm;
     }
 
+    // formatWhen(date, now) — "6:00 PM", or "6:00 AM tomorrow" if it's another day.
+    function formatWhen(date, now) {
+        const sameDay = date.toDateString() === now.toDateString();
+        return formatTimeForDisplay(date) + (sameDay ? "" : " tomorrow");
+    }
 
-    // sendNotification(dish, action) — Sends a desktop notification popup.
-    function sendNotification(dish, action) {
-        if ("Notification" in window && Notification.permission === "granted") {
-            new Notification("🍳 " + dish, {
-                body: action,
-                icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍳</text></svg>"
-            });
-        }
+    // formatCountdown(seconds) — "04:32", or "1:04:32" when an hour or more.
+    function formatCountdown(totalSeconds) {
+        const s = Math.max(0, totalSeconds);
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        const mmss = String(m).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+        return h > 0 ? h + ":" + mmss : mmss;
+    }
+
+    // formatDuration(ms) — "25 min", "2 min 30 sec", "45 sec", "1 hr 10 min"
+    function formatDuration(ms) {
+        const totalSec = Math.max(0, Math.round(ms / 1000));
+        if (totalSec < 60) return totalSec + " sec";
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        if (h > 0) return h + " hr" + (m ? " " + m + " min" : "");
+        return m + " min" + (s ? " " + s + " sec" : "");
+    }
+
+    function formatMinutes(minutes) {
+        return formatDuration(minutes * 60000);
     }
 
 
-    // ---- PAUSE / RESUME ----
+    // ---- TIMING MODE ----
 
-    // Stopwatch interval for the pause overlay
+    // finishChoice() — Which "Finish together" option is selected.
+    function finishChoice() {
+        return document.getElementById("finish-by").checked ? "done-by" : "finish";
+    }
+
+    // setMode(mode) — Switches between "start", "finish" and "done-by".
+    function setMode(mode) {
+        timingMode = mode;
+        const finishing = mode !== "start";
+
+        document.getElementById("mode-start").className = "btn btn-mode" + (finishing ? "" : " active");
+        document.getElementById("mode-finish").className = "btn btn-mode" + (finishing ? " active" : "");
+        document.getElementById("finish-options").style.display = finishing ? "flex" : "none";
+        if (finishing) {
+            document.getElementById(mode === "done-by" ? "finish-by" : "finish-asap").checked = true;
+        }
+
+        const desc = document.getElementById("mode-description");
+        if (mode === "start") {
+            desc.textContent = "Every dish starts as soon as you tap Start Cooking.";
+        } else if (mode === "finish") {
+            desc.textContent = "Shorter dishes start later, so everything is ready at the same moment, as soon as possible.";
+        } else {
+            desc.textContent = "The app tells you when to start each dish, so everything is ready by the time you pick.";
+        }
+
+        // Default "ready by" time: an hour from now, rounded up to the next 15 minutes
+        const timeInput = document.getElementById("done-by-time");
+        if (mode === "done-by" && !timeInput.value) {
+            const t = new Date();
+            t.setHours(t.getHours() + 1);
+            t.setMinutes(Math.ceil(t.getMinutes() / 15) * 15, 0, 0);
+            timeInput.value = String(t.getHours()).padStart(2, "0") + ":" + String(t.getMinutes()).padStart(2, "0");
+        }
+
+        renderPlanPreview();
+    }
+
+
+    // ---- SETUP: DISH CARDS AND STEP ROWS ----
+
+    // addDish(prefill) — Adds a dish card to the setup section.
+    // prefill is optional: { name, steps: [{ action, minutes }] } (used by Load).
+    function addDish(prefill) {
+        dishCounter++;
+        const dishId = dishCounter;
+
+        const dishDiv = document.createElement("div");
+        dishDiv.className = "dish-card";
+        dishDiv.id = "dish-" + dishId;
+        dishDiv.innerHTML =
+            '<div class="dish-header">' +
+                '<input type="text" placeholder="Dish name (e.g. Chicken)" class="dish-name">' +
+                '<div class="dish-header-buttons">' +
+                    '<button onclick="saveDish(' + dishId + ', this)" class="btn btn-save">Save</button>' +
+                    '<button onclick="removeDish(' + dishId + ')" class="btn btn-remove">Remove</button>' +
+                '</div>' +
+            '</div>' +
+            '<div class="steps-container" id="steps-' + dishId + '"></div>' +
+            '<button onclick="addStep(' + dishId + ')" class="btn btn-add-step">+ Add Step</button>';
+
+        document.getElementById("dishes-container").appendChild(dishDiv);
+
+        if (prefill) {
+            // Set values after insertion (not via innerHTML) so names can't inject HTML
+            dishDiv.querySelector(".dish-name").value = prefill.name;
+            prefill.steps.forEach(function(step) { addStep(dishId, step); });
+        } else {
+            addStep(dishId);
+        }
+
+        renderPlanPreview();
+        return dishDiv;
+    }
+
+    // buildStepRow(step) — Creates one "After [__] min: [what to do]" row.
+    // Used by both the setup cards and the saved-dish edit form.
+    function buildStepRow(step) {
+        const row = document.createElement("div");
+        row.className = "step-row";
+        row.innerHTML =
+            '<span class="step-label step-after">After</span>' +
+            '<input type="number" inputmode="decimal" placeholder="?" min="0" step="any" class="step-minutes" ' +
+                'title="Minutes after the previous step (decimals OK: 2.5 = 2 min 30 sec)">' +
+            '<span class="step-label">min:</span>' +
+            '<input type="text" placeholder="What to do (e.g. Flip chicken)" class="step-action">' +
+            '<button onclick="removeStep(this)" class="btn btn-remove-step" title="Remove step">✕</button>';
+
+        if (step) {
+            row.querySelector(".step-action").value = step.action;
+            row.querySelector(".step-minutes").value = step.minutes;
+        }
+        return row;
+    }
+
+    // relabelSteps(container) — First row says "After", later rows "Then after".
+    function relabelSteps(container) {
+        container.querySelectorAll(".step-after").forEach(function(el, i) {
+            el.textContent = i === 0 ? "After" : "Then after";
+        });
+    }
+
+    // addStep(dishId, step) — Adds a step row to a setup dish card.
+    function addStep(dishId, step) {
+        const container = document.getElementById("steps-" + dishId);
+        container.appendChild(buildStepRow(step));
+        relabelSteps(container);
+        renderPlanPreview();
+    }
+
+    // removeStep(button) — Removes the step row the ✕ button belongs to.
+    function removeStep(button) {
+        const container = button.closest(".steps-container, .saved-edit-steps");
+        button.parentElement.remove();
+        if (container) relabelSteps(container);
+        renderPlanPreview();
+    }
+
+    // removeDish(dishId) — Removes an entire dish card from the setup.
+    function removeDish(dishId) {
+        const dish = document.getElementById("dish-" + dishId);
+        if (dish) dish.remove();
+        renderPlanPreview();
+    }
+
+    // readSteps(container, dishName) — Reads the step rows inside container.
+    // Returns { steps: [{ action, minutes }], problems: ["..."] }.
+    // Completely empty rows are ignored. A step without minutes is a problem
+    // (it used to silently become 0, which made the alarm ring instantly).
+    function readSteps(container, dishName) {
+        const steps = [];
+        const problems = [];
+
+        container.querySelectorAll(".step-row").forEach(function(row) {
+            const action = row.querySelector(".step-action").value.trim();
+            const minutesText = row.querySelector(".step-minutes").value.trim();
+            if (!action && !minutesText) return;
+
+            const stepNumber = steps.length + 1;
+            const minutes = parseFloat(minutesText);
+            if (minutesText === "" || isNaN(minutes) || minutes < 0) {
+                problems.push(dishName + ", step " + stepNumber +
+                    (action ? ' ("' + action + '")' : "") + ": how many minutes?");
+            }
+            steps.push({
+                action: action || "Step " + stepNumber,
+                minutes: isNaN(minutes) || minutes < 0 ? 0 : minutes
+            });
+        });
+
+        return { steps: steps, problems: problems };
+    }
+
+    // readSetup() — Reads every setup dish card.
+    // Returns { dishes: [{ name, steps, totalMinutes }], problems: ["..."] }.
+    function readSetup() {
+        const dishes = [];
+        const problems = [];
+
+        document.querySelectorAll("#dishes-container .dish-card").forEach(function(card, index) {
+            const typedName = card.querySelector(".dish-name").value.trim();
+            const name = typedName || "Dish " + (index + 1);
+            const result = readSteps(card.querySelector(".steps-container"), name);
+
+            // A card with no name and no steps is just an unused blank card
+            if (!typedName && result.steps.length === 0) return;
+
+            if (result.steps.length === 0) {
+                problems.push(name + ": add at least one step.");
+                return;
+            }
+            problems.push.apply(problems, result.problems);
+
+            const totalMinutes = result.steps.reduce(function(sum, s) { return sum + s.minutes; }, 0);
+            dishes.push({ name: name, steps: result.steps, totalMinutes: totalMinutes });
+        });
+
+        return { dishes: dishes, problems: problems };
+    }
+
+    // getTargetDate(now) — The "Ready by" time as a Date.
+    // Returns null if no time is picked. If the time has already passed
+    // today it means tomorrow, and tomorrow is set to true.
+    function getTargetDate(now) {
+        const value = document.getElementById("done-by-time").value;
+        if (!value) return null;
+        const parts = value.split(":");
+        const date = new Date(now);
+        date.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+        let tomorrow = false;
+        if (date <= now) {
+            date.setDate(date.getDate() + 1);
+            tomorrow = true;
+        }
+        return { date: date, tomorrow: tomorrow };
+    }
+
+    // computePlan(dishes, now) — Works out how long each dish waits before starting.
+    //   "start":   nobody waits
+    //   "finish":  each dish waits (longest dish − this dish), so all finish together
+    //   "done-by": each dish waits (time until target − this dish)
+    // Returns { dishes: [... + delayMinutes], target, tomorrow, problem }.
+    function computePlan(dishes, now) {
+        const longest = dishes.reduce(function(a, d) { return d.totalMinutes > a.totalMinutes ? d : a; }, dishes[0]);
+        let anchorMinutes = longest.totalMinutes;
+        let target = null;
+        let tomorrow = false;
+        let problem = null;
+
+        if (timingMode === "done-by") {
+            const t = getTargetDate(now);
+            if (!t) return { problem: "Pick a time to be ready by." };
+            target = t.date;
+            tomorrow = t.tomorrow;
+            anchorMinutes = (target - now) / 60000;
+            if (longest.totalMinutes > anchorMinutes) {
+                problem = '"' + longest.name + '" takes ' + formatMinutes(longest.totalMinutes) +
+                    ", but " + formatTimeForDisplay(target) + " is only " + formatDuration(target - now) +
+                    " away. Pick a later time or shorten the dish.";
+            }
+        } else if (timingMode === "finish") {
+            target = new Date(now.getTime() + anchorMinutes * 60000);
+        }
+
+        const planned = dishes.map(function(d) {
+            let delay = timingMode === "start" ? 0 : anchorMinutes - d.totalMinutes;
+            if (delay < 1 / 60) delay = 0;   // under a second: just start now
+            return { name: d.name, steps: d.steps, totalMinutes: d.totalMinutes, delayMinutes: delay };
+        });
+
+        return { dishes: planned, target: target, tomorrow: tomorrow, problem: problem };
+    }
+
+    // renderPlanPreview() — Shows when each dish would start and be ready if
+    // you tapped Start now, plus anything that needs fixing first.
+    function renderPlanPreview() {
+        const el = document.getElementById("plan-preview");
+        if (!el) return;
+
+        const now = new Date();
+        const setup = readSetup();
+        if (setup.dishes.length === 0 && setup.problems.length === 0) {
+            el.style.display = "none";
+            return;
+        }
+
+        let html = '<div class="plan-title">If you start now</div>';
+
+        setup.problems.forEach(function(p) {
+            html += '<div class="plan-problem">⚠ ' + escapeHtml(p) + '</div>';
+        });
+
+        // Times worked out from steps that still need fixing would be wrong, so skip them
+        if (setup.dishes.length > 0 && setup.problems.length === 0) {
+            const plan = computePlan(setup.dishes, now);
+            if (plan.problem) {
+                html += '<div class="plan-problem">⚠ ' + escapeHtml(plan.problem) + '</div>';
+            } else {
+                plan.dishes.forEach(function(d) {
+                    const start = new Date(now.getTime() + d.delayMinutes * 60000);
+                    const ready = new Date(start.getTime() + d.totalMinutes * 60000);
+                    const startText = d.delayMinutes === 0
+                        ? "start now"
+                        : "start " + formatWhen(start, now) + " (in " + formatDuration(start - now) + ")";
+                    html +=
+                        '<div class="plan-row">' +
+                            '<span class="plan-dish">' + escapeHtml(d.name) + '</span>' +
+                            '<span class="plan-times">' + startText + ' · ready ' + formatWhen(ready, now) + '</span>' +
+                        '</div>';
+                });
+            }
+        }
+
+        el.innerHTML = html;
+        el.style.display = "block";
+    }
+
+
+    // ---- STARTING A COOK ----
+
+    // startCooking() — Reads the setup, works out every alarm time, and
+    // switches to the timer view.
+    function startCooking() {
+        // This is a tap, so it's our chance to switch sound on for the session
+        unlockAudio();
+
+        const now = new Date();
+        const setup = readSetup();
+
+        if (setup.dishes.length === 0 && setup.problems.length === 0) {
+            alert("Add at least one dish with a step first.");
+            return;
+        }
+        if (setup.problems.length > 0) {
+            alert("Fix these first:\n\n• " + setup.problems.join("\n• "));
+            return;
+        }
+
+        const plan = computePlan(setup.dishes, now);
+        if (plan.problem) {
+            alert(plan.problem);
+            return;
+        }
+        setupSnapshot = setup.dishes.map(function(d) { return { name: d.name, steps: d.steps }; });
+        if (plan.tomorrow) {
+            const time = formatTimeForDisplay(plan.target);
+            if (!confirm(time + " has already passed today.\n\nPlan for " + time + " tomorrow?")) return;
+        }
+
+        // Build the alarm schedule. Each step's minutes count from the previous
+        // step, so fire times are cumulative.
+        //   Example: steps of 15 and 25 min, dish delayed by 10 min:
+        //            "Start" at 10, step 1 at 25, step 2 at 50
+        activeDishes = plan.dishes.map(function(dish) {
+            const steps = [];
+            if (dish.delayMinutes > 0) {
+                steps.push({
+                    action: "Start " + dish.name,
+                    fireTime: new Date(now.getTime() + dish.delayMinutes * 60000),
+                    fired: false, warned: false, isWait: true
+                });
+            }
+            let cumulative = dish.delayMinutes;
+            dish.steps.forEach(function(step) {
+                cumulative += step.minutes;
+                steps.push({
+                    action: step.action,
+                    fireTime: new Date(now.getTime() + cumulative * 60000),
+                    fired: false, warned: false, isWait: false
+                });
+            });
+            const active = {
+                name: dish.name, currentStep: 0, done: false, finishedAt: null,
+                paused: false, pauseStartTime: null, steps: steps
+            };
+            skipWarningIfTooSoon(active.steps[0], now);
+            return active;
+        });
+
+        if (timingMode === "done-by") {
+            doneByText = "Everything ready by " + formatWhen(plan.target, now);
+        } else if (timingMode === "finish") {
+            doneByText = "Everything ready at about " + formatWhen(plan.target, now);
+        } else {
+            doneByText = "";
+        }
+
+        // Desktop browsers can show a pop-up notification too. Phones mostly
+        // can't (iPhone only allows it for home-screen apps), so sound is the
+        // main alert. Wrapped in try because some browsers throw here.
+        try {
+            if ("Notification" in window && Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+        } catch (e) {}
+
+        isPaused = false;
+        pauseStartTime = null;
+        showTimerView();
+        startLoop();
+        requestWakeLock();
+    }
+
+    // skipWarningIfTooSoon(step, now) — A step that rings within ~30 seconds
+    // of becoming current doesn't get a separate heads-up beep.
+    function skipWarningIfTooSoon(step, now) {
+        if (step && !step.fired && step.fireTime - now <= (WARNING_SECONDS + 5) * 1000) {
+            step.warned = true;
+        }
+    }
+
+    // showTimerView() — Swaps the setup screen for the timer screen.
+    function showTimerView() {
+        document.getElementById("setup-section").style.display = "none";
+        document.getElementById("timer-section").style.display = "block";
+        document.getElementById("timer-heading").textContent = "Cooking In Progress...";
+        document.getElementById("btn-pause").style.display = "";
+        document.getElementById("btn-pause").textContent = isPaused ? "Resume All" : "Pause All";
+        document.getElementById("btn-stop").textContent = "Stop & Reset";
+
+        const info = document.getElementById("done-by-info");
+        info.textContent = doneByText;
+        info.style.display = doneByText ? "block" : "none";
+
+        renderDishes();
+        window.scrollTo(0, 0);
+    }
+
+    // startLoop() — Starts the twice-a-second update loop.
+    function startLoop() {
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(updateTimers, 500);
+        updateTimers();
+    }
+
+
+    // ---- TIMER CARDS ----
+
+    // renderDishes() — Creates one card per dish. Cards stay in the same
+    // order the whole time, so a button never moves out from under your finger.
+    function renderDishes() {
+        const container = document.getElementById("timers-container");
+        container.innerHTML = "";
+        activeDishes.forEach(function(dish, index) {
+            const div = document.createElement("div");
+            div.id = "dish-timer-" + index;
+            container.appendChild(div);
+            renderDishCard(index);
+        });
+    }
+
+    // renderDishCard(i) — Builds a dish card's structure and buttons. Called
+    // when the card's step or state changes. The numbers inside are filled
+    // in by updateDishCard(), which runs every tick.
+    function renderDishCard(dishIndex) {
+        const dish = activeDishes[dishIndex];
+        const box = document.getElementById("dish-timer-" + dishIndex);
+        if (!box) return;
+
+        if (dish.done) {
+            box.innerHTML =
+                '<div class="timer-card done">' +
+                    '<div class="timer-dish">' + escapeHtml(dish.name) + '</div>' +
+                    '<div class="timer-action">All done!</div>' +
+                    '<div class="timer-countdown">✓</div>' +
+                    '<div class="timer-progress">' +
+                        (dish.finishedAt ? "Finished at " + formatTimeForDisplay(dish.finishedAt) : "All steps completed") +
+                    '</div>' +
+                '</div>';
+            return;
+        }
+
+        const step = dish.steps[dish.currentStep];
+        let buttons;
+        if (step.fired) {
+            buttons =
+                '<button class="btn btn-done-step" onclick="manualAdvanceDish(' + dishIndex + ')">' +
+                    (step.isWait ? "✓ Started" : "✓ Done") +
+                '</button>';
+        } else {
+            buttons =
+                '<button class="btn btn-dish-pause" onclick="toggleDishPause(' + dishIndex + ')">' +
+                    (dish.paused ? "&#9654; Resume" : "&#9646;&#9646; Pause") +
+                '</button>' +
+                '<button class="btn btn-skip-step" onclick="doStepEarly(' + dishIndex + ')">' +
+                    (step.isWait ? "&#9654; Start now" : "✓ Done early") +
+                '</button>';
+        }
+
+        box.innerHTML =
+            '<div class="timer-card">' +
+                '<div class="timer-dish">' + escapeHtml(dish.name) + '</div>' +
+                '<div class="timer-label" data-role="label"></div>' +
+                '<div class="timer-action">' + escapeHtml(step.action) + '</div>' +
+                '<div class="timer-countdown" data-role="countdown">--:--</div>' +
+                '<div class="timer-sub" data-role="sub"></div>' +
+                '<div class="timer-then" data-role="then"></div>' +
+                '<div class="timer-progress" data-role="progress"></div>' +
+                '<div class="card-btns">' + buttons + '</div>' +
+            '</div>';
+
+        updateDishCard(dishIndex, new Date());
+    }
+
+    // updateDishCard(i, now) — Refreshes a card's countdown, clock times,
+    // "Then:" line and colour. Only touches text, never the buttons.
+    function updateDishCard(dishIndex, now) {
+        const dish = activeDishes[dishIndex];
+        if (dish.done) return;
+        const box = document.getElementById("dish-timer-" + dishIndex);
+        const card = box ? box.querySelector(".timer-card") : null;
+        if (!card) return;
+
+        function part(role) { return card.querySelector('[data-role="' + role + '"]'); }
+
+        const step = dish.steps[dish.currentStep];
+        const next = dish.steps[dish.currentStep + 1];
+        const last = dish.steps[dish.steps.length - 1];
+
+        // How far the dish's remaining steps will slide later:
+        //  - while an alarm rings, by how late you are tapping Done
+        //  - while the dish is paused, by how long it has been paused
+        const lateMs = step.fired ? Math.max(0, now - step.fireTime) : 0;
+        const pausedMs = dish.paused && dish.pauseStartTime ? now - dish.pauseStartTime : 0;
+        const shiftMs = lateMs + pausedMs;
+
+        const remainingSec = Math.ceil((step.fireTime.getTime() + pausedMs - now.getTime()) / 1000);
+
+        let state;
+        if (step.fired) state = "fired";
+        else if (step.isWait) state = "waiting";
+        else if (remainingSec <= WARNING_SECONDS) state = "imminent";
+        else state = "upcoming";
+        card.className = "timer-card " + state + ((dish.paused || isPaused) ? " paused" : "");
+
+        part("label").textContent = step.fired ? "Now" : "Next";
+
+        if (step.fired) {
+            part("countdown").textContent = "NOW!";
+            part("sub").textContent = "Ringing for " + formatCountdown(Math.floor(lateMs / 1000)) +
+                ". Tap " + (step.isWait ? "Started" : "Done") + " when you've done it.";
+        } else {
+            part("countdown").textContent = formatCountdown(remainingSec);
+            part("sub").textContent = dish.paused
+                ? "Paused"
+                : "at " + formatWhen(step.fireTime, now);
+        }
+
+        if (next) {
+            const gap = formatDuration(next.fireTime - step.fireTime);
+            part("then").textContent = step.fired
+                ? "Then: " + next.action + ", " + gap + " after you tap " + (step.isWait ? "Started" : "Done")
+                : "Then: " + next.action + ", " + gap + " later (" +
+                  formatWhen(new Date(next.fireTime.getTime() + shiftMs), now) + ")";
+        } else {
+            part("then").textContent = "This is the last step.";
+        }
+
+        const hasWait = dish.steps[0].isWait;
+        const totalCooking = hasWait ? dish.steps.length - 1 : dish.steps.length;
+        const stepNumber = hasWait ? dish.currentStep : dish.currentStep + 1;
+        const readyAt = new Date(last.fireTime.getTime() + shiftMs);
+        part("progress").textContent =
+            (step.isWait ? "Not started yet" : "Step " + stepNumber + " of " + totalCooking) +
+            " · ready about " + formatWhen(readyAt, now);
+    }
+
+
+    // ---- THE TIMER LOOP ----
+
+    // updateTimers() — Runs twice a second. Rings alarms that are due,
+    // repeats alarms that haven't been acknowledged, and refreshes the cards.
+    function updateTimers() {
+        // When everything is paused, nothing moves and nothing rings
+        if (isPaused) return;
+
+        const now = new Date();
+        let allDone = true;
+        let newlyFired = false;
+        const ringing = [];
+
+        activeDishes.forEach(function(dish, dishIndex) {
+            if (dish.done) return;
+            allDone = false;
+
+            const step = dish.steps[dish.currentStep];
+
+            if (!dish.paused && !step.fired) {
+                if (step.fireTime <= now) {
+                    // The step is due: start ringing
+                    step.fired = true;
+                    step.firedAt = now;
+                    newlyFired = true;
+                    sendNotification(dish.name, step.action);
+                    renderDishCard(dishIndex);   // swaps in the big Done button
+                } else if (!step.warned && step.fireTime - now <= WARNING_SECONDS * 1000) {
+                    step.warned = true;
+                    playWarningBeep();
+                }
+            }
+
+            if (step.fired && !dish.paused) ringing.push(dishIndex);
+            updateDishCard(dishIndex, now);
+        });
+
+        // Ring now for a new alarm, then repeat every few seconds until
+        // every ringing step has been acknowledged with Done.
+        if (ringing.length > 0 && (newlyFired || now.getTime() - lastAlarmAt >= ALARM_REPEAT_MS)) {
+            playBeep();
+            lastAlarmAt = now.getTime();
+        }
+
+        updateAlertStrip(ringing);
+        updateSoundBanner();
+        document.title = ringing.length > 0
+            ? "⏰ " + activeDishes[ringing[0]].steps[activeDishes[ringing[0]].currentStep].action
+            : "Cooking Timer";
+
+        if (allDone) {
+            finishCooking();
+            return;
+        }
+
+        // Save on every tick so a reload can restore the cook
+        saveTimerState();
+    }
+
+    // updateAlertStrip(ringing) — The sticky bar at the top listing every
+    // alarm that's ringing. Tapping one scrolls to that dish's card.
+    function updateAlertStrip(ringing) {
+        const el = document.getElementById("alert-strip");
+        const key = ringing.map(function(i) { return i + ":" + activeDishes[i].currentStep; }).join(",");
+        if (el.dataset.key === key) return;   // unchanged — don't rebuild
+        el.dataset.key = key;
+
+        if (ringing.length === 0) {
+            el.style.display = "none";
+            el.innerHTML = "";
+            return;
+        }
+        el.innerHTML = ringing.map(function(i) {
+            const dish = activeDishes[i];
+            return '<button class="alert-chip" onclick="scrollToDish(' + i + ')">⏰ ' +
+                escapeHtml(dish.name) + ': ' + escapeHtml(dish.steps[dish.currentStep].action) + '</button>';
+        }).join("");
+        el.style.display = "flex";
+    }
+
+    function scrollToDish(dishIndex) {
+        const el = document.getElementById("dish-timer-" + dishIndex);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    // finishCooking() — Every dish is done.
+    function finishCooking() {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        localStorage.removeItem("cookTimerState");
+        releaseWakeLock();
+
+        document.getElementById("timer-heading").textContent = "All done! 🎉";
+        document.getElementById("btn-pause").style.display = "none";
+        document.getElementById("btn-stop").textContent = "Back to setup";
+        document.title = "Cooking Timer";
+        updateAlertStrip([]);
+        updateSoundBanner();
+    }
+
+
+    // ---- STEP ACTIONS: DONE, DONE EARLY, PAUSE ----
+
+    // manualAdvanceDish(i) — "Done" / "Started": the current step has been done.
+    // The remaining steps are re-anchored to NOW, keeping their gaps, so the
+    // next step always gets its full time no matter how late the tap was.
+    function manualAdvanceDish(dishIndex) {
+        unlockAudio();
+
+        const dish = activeDishes[dishIndex];
+        if (dish.done) return;
+        const step = dish.steps[dish.currentStep];
+        const now = new Date();
+
+        const anchor = step.fireTime.getTime();
+        dish.steps.forEach(function(s) {
+            if (!s.fired && s !== step) {
+                s.fireTime = new Date(now.getTime() + (s.fireTime.getTime() - anchor));
+            }
+        });
+        step.fired = true;
+        if (!step.firedAt) step.firedAt = now;
+
+        // Doing a step also ends a pause on this dish (re-anchoring covers it)
+        dish.paused = false;
+        dish.pauseStartTime = null;
+
+        advanceDish(dishIndex, now);
+        updateTimers();
+    }
+
+    // doStepEarly(i) — The step was done before its alarm. Asks first, since
+    // it can't be undone, then works exactly like tapping Done.
+    function doStepEarly(dishIndex) {
+        const dish = activeDishes[dishIndex];
+        if (dish.done) return;
+        const step = dish.steps[dish.currentStep];
+        if (step.fired) {
+            manualAdvanceDish(dishIndex);
+            return;
+        }
+
+        const now = new Date();
+        const pausedMs = dish.paused && dish.pauseStartTime ? now - dish.pauseStartTime : 0;
+        const early = formatDuration(step.fireTime - now + pausedMs);
+        const next = dish.steps[dish.currentStep + 1];
+
+        const message = step.isWait
+            ? "Start " + dish.name + " now?\n\nIt will be ready about " + early + " earlier than planned."
+            : 'Mark "' + step.action + '" done now (' + early + " early)?\n\n" +
+              (next ? "The next timer starts from now." : "That finishes " + dish.name + ".");
+
+        if (confirm(message)) manualAdvanceDish(dishIndex);
+    }
+
+    // advanceDish(i, now) — Moves a dish to its next step, or marks it done.
+    function advanceDish(dishIndex, now) {
+        const dish = activeDishes[dishIndex];
+        if (dish.currentStep < dish.steps.length - 1) {
+            dish.currentStep++;
+            skipWarningIfTooSoon(dish.steps[dish.currentStep], now);
+        } else {
+            dish.done = true;
+            dish.finishedAt = now;
+        }
+        renderDishCard(dishIndex);
+    }
+
+    // toggleDishPause(i) — Pauses or resumes a single dish.
+    function toggleDishPause(dishIndex) {
+        const dish = activeDishes[dishIndex];
+        if (dish.done || isPaused) return;
+
+        if (!dish.paused) {
+            dish.paused = true;
+            dish.pauseStartTime = new Date();
+        } else {
+            const pausedMs = new Date() - dish.pauseStartTime;
+            dish.steps.forEach(function(step) {
+                if (!step.fired) step.fireTime = new Date(step.fireTime.getTime() + pausedMs);
+            });
+            dish.paused = false;
+            dish.pauseStartTime = null;
+        }
+        renderDishCard(dishIndex);
+        saveTimerState();
+    }
+
+
+    // ---- PAUSE ALL ----
+
     let pauseStopwatchInterval = null;
 
     function updatePauseStopwatch() {
         if (!pauseStartTime) return;
-        const elapsed = Math.floor((new Date().getTime() - pauseStartTime.getTime()) / 1000);
-        const mins = Math.floor(elapsed / 60);
-        const secs = elapsed % 60;
-        const el = document.getElementById("pause-stopwatch");
-        if (el) el.textContent = mins + ":" + (secs < 10 ? "0" : "") + secs;
+        const elapsed = Math.floor((new Date() - pauseStartTime) / 1000);
+        document.getElementById("pause-stopwatch").textContent =
+            Math.floor(elapsed / 60) + ":" + String(elapsed % 60).padStart(2, "0");
     }
 
     function showPauseOverlay() {
         document.getElementById("pause-overlay").style.display = "flex";
         updatePauseStopwatch();
+        if (pauseStopwatchInterval) clearInterval(pauseStopwatchInterval);
         pauseStopwatchInterval = setInterval(updatePauseStopwatch, 1000);
     }
 
@@ -1090,95 +1113,243 @@
             clearInterval(pauseStopwatchInterval);
             pauseStopwatchInterval = null;
         }
-        // Reset stopwatch display for next pause
-        const el = document.getElementById("pause-stopwatch");
-        if (el) el.textContent = "0:00";
+        document.getElementById("pause-stopwatch").textContent = "0:00";
     }
 
-    // togglePause() — Freezes or unfreezes all timers.
-    // When pausing: records the current time so we know how long the pause lasted.
-    // When resuming: shifts every fire time forward by the pause duration,
-    // so timers pick up exactly where they left off.
+    // togglePause() — Freezes or unfreezes every dish. Ringing alarms go quiet
+    // while paused. On resume, all future alarms shift by the pause length.
     function togglePause() {
-        const btn = document.getElementById("btn-pause");
+        unlockAudio();
+        const now = new Date();
 
         if (!isPaused) {
-            // PAUSE — freeze everything
             isPaused = true;
-            pauseStartTime = new Date();
-            btn.textContent = "Resume All";
-
-            // Add "paused" class to all active timer cards for visual feedback
-            activeDishes.forEach(function(dish, index) {
-                if (dish.done) return;
-                const container = document.getElementById("dish-timer-" + index);
-                if (!container) return;
-                const card = container.querySelector(".timer-card");
-                if (card) card.classList.add("paused");
-            });
-
+            pauseStartTime = now;
+            document.getElementById("btn-pause").textContent = "Resume All";
+            activeDishes.forEach(function(dish, i) { updateDishCard(i, now); });
+            updateAlertStrip([]);
             showPauseOverlay();
         } else {
-            // RESUME — shift all fire times forward by however long we were paused
-            const now = new Date();
-            const pausedDuration = now.getTime() - pauseStartTime.getTime();
-
+            const pausedMs = now - pauseStartTime;
             activeDishes.forEach(function(dish) {
+                // A dish that is also paused on its own is skipped here: its
+                // own Resume will shift it by its whole pause, which already
+                // includes this one. (Shifting both double-counted the time.)
+                if (dish.done || dish.paused) return;
                 dish.steps.forEach(function(step) {
-                    if (!step.fired) {
-                        step.fireTime = new Date(step.fireTime.getTime() + pausedDuration);
-                    }
+                    if (!step.fired) step.fireTime = new Date(step.fireTime.getTime() + pausedMs);
                 });
             });
-
             isPaused = false;
             pauseStartTime = null;
-            btn.textContent = "Pause All";
-
+            document.getElementById("btn-pause").textContent = "Pause All";
             hidePauseOverlay();
-
-            // Unlock audio if needed — tapping Resume counts as a user gesture
-            if (!audioCtx) {
-                try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
-            } else if (audioCtx.state === "suspended") {
-                audioCtx.resume();
-            }
-
-            // Remove "paused" class from all timer cards
-            activeDishes.forEach(function(dish, index) {
-                if (dish.done) return;
-                const container = document.getElementById("dish-timer-" + index);
-                if (!container) return;
-                const card = container.querySelector(".timer-card");
-                if (card) card.classList.remove("paused");
-            });
+            updateTimers();
         }
 
-        // Persist the updated pause state immediately
         saveTimerState();
+    }
+
+
+    // ---- SOUND ----
+    //
+    // Phones only allow a page to make sound after the user taps something.
+    // unlockAudio() runs on every tap (see the listeners below), so sound
+    // switches on with the first tap and comes back after the browser
+    // suspends it (e.g. after a reload, or after the phone was locked).
+    // While sound is off during a cook, a banner asks for a tap.
+
+    function unlockAudio() {
+        const AudioCtor = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtor) return;
+        try {
+            if (!audioCtx) {
+                audioCtx = new AudioCtor();
+                audioCtx.onstatechange = updateSoundBanner;
+            }
+            if (audioCtx.state !== "running") {
+                // Playing a silent blip inside the tap is what unlocks older iPhones
+                const blip = audioCtx.createBufferSource();
+                blip.buffer = audioCtx.createBuffer(1, 1, 22050);
+                blip.connect(audioCtx.destination);
+                blip.start(0);
+                const p = audioCtx.resume();
+                if (p && p.then) p.then(updateSoundBanner, function() {});
+            }
+        } catch (e) {
+            console.log("Could not start audio:", e);
+        }
+        updateSoundBanner();
+    }
+
+    // Any tap anywhere is a chance to (re)enable sound and the screen wake lock
+    function onAnyTap() {
+        unlockAudio();
+        if (timerInterval && !wakeLock) requestWakeLock();
+    }
+    document.addEventListener("click", onAnyTap, true);
+    document.addEventListener("touchend", onAnyTap, true);
+
+    // updateSoundBanner() — Shows "Sound is off" during a cook when the
+    // browser isn't letting us play sound.
+    function updateSoundBanner() {
+        const banner = document.getElementById("sound-banner");
+        const cooking = timerInterval !== null &&
+            document.getElementById("timer-section").style.display !== "none";
+        const soundOn = audioCtx && audioCtx.state === "running";
+        banner.style.display = (cooking && !soundOn) ? "block" : "none";
+    }
+
+    // Selected alarm types — loaded from localStorage, saved on change.
+    let selectedWarnSound = "single-beep";
+    let selectedFinalSound = "kitchen-timer";
+
+    function loadSoundPrefs() {
+        selectedWarnSound  = localStorage.getItem("warnSound")  || "single-beep";
+        selectedFinalSound = localStorage.getItem("finalSound") || "kitchen-timer";
+        document.getElementById("warn-sound-select").value  = selectedWarnSound;
+        document.getElementById("final-sound-select").value = selectedFinalSound;
+    }
+
+    function saveSoundPrefs() {
+        selectedWarnSound  = document.getElementById("warn-sound-select").value;
+        selectedFinalSound = document.getElementById("final-sound-select").value;
+        localStorage.setItem("warnSound",  selectedWarnSound);
+        localStorage.setItem("finalSound", selectedFinalSound);
+    }
+
+    // testSound(which) — Plays the selected warning or alarm sound.
+    function testSound(which) {
+        unlockAudio();
+        playSound(which === "warn" ? selectedWarnSound : selectedFinalSound);
+    }
+
+    // playSound(type) — Plays one of the named alarm sounds with the Web Audio API.
+    function playSound(type) {
+        if (!audioCtx) return;
+        const ctx = audioCtx;
+        const t = ctx.currentTime;
+
+        // Helper: schedule a single tone burst
+        function tone(freq, start, dur, gainVal, waveType) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = freq;
+            osc.type = waveType || "sine";
+            gain.gain.setValueAtTime(gainVal, t + start);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + start + dur);
+            osc.start(t + start);
+            osc.stop(t + start + dur + 0.05);
+        }
+
+        // Helper: a tone that sweeps or decays (used by "rising" and "bell")
+        function sweep(fromFreq, toFreq, dur) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(fromFreq, t);
+            if (toFreq !== fromFreq) osc.frequency.exponentialRampToValueAtTime(toFreq, t + dur - 0.05);
+            gain.gain.setValueAtTime(1.0, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+            osc.start(t);
+            osc.stop(t + dur + 0.05);
+        }
+
+        try {
+            switch (type) {
+                case "single-beep":
+                    tone(880, 0, 0.35, 1.0);
+                    break;
+                case "double-beep":
+                    tone(880, 0,    0.3, 1.0);
+                    tone(880, 0.42, 0.3, 1.0);
+                    break;
+                case "triple-beep":
+                    tone(880, 0,    0.25, 1.0);
+                    tone(880, 0.35, 0.25, 1.0);
+                    tone(880, 0.70, 0.25, 1.0);
+                    break;
+                case "chime":
+                    tone(1047, 0,    0.6, 0.9, "triangle");
+                    tone(784,  0.25, 0.5, 0.6, "triangle");
+                    break;
+                case "rising":
+                    sweep(330, 1100, 0.75);
+                    break;
+                case "bell":
+                    sweep(1047, 1047, 1.8);
+                    break;
+                case "kitchen-timer":
+                    for (let i = 0; i < 5; i++) tone(1000, i * 0.22, 0.15, 1.0);
+                    break;
+                case "siren":
+                    for (let i = 0; i < 6; i++) {
+                        tone(600, i * 0.18,        0.15, 1.0);
+                        tone(900, i * 0.18 + 0.09, 0.15, 1.0);
+                    }
+                    break;
+                case "buzz":
+                    tone(220, 0,    0.4, 1.0, "square");
+                    tone(220, 0.55, 0.4, 1.0, "square");
+                    break;
+                default:
+                    tone(880, 0, 0.3, 1.0);
+            }
+        } catch (e) {
+            console.log("Could not play sound:", e);
+        }
+    }
+
+    // playBeep() — The step alarm (repeats while a step is ringing).
+    // Vibration works on Android only; iPhones ignore it.
+    function playBeep() {
+        if ("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
+        playSound(selectedFinalSound);
+    }
+
+    // playWarningBeep() — The heads-up 30 seconds before a step.
+    function playWarningBeep() {
+        if ("vibrate" in navigator) navigator.vibrate([100]);
+        playSound(selectedWarnSound);
+    }
+
+    // sendNotification(dish, action) — A desktop pop-up, where supported.
+    // Android Chrome throws on new Notification(), hence the try.
+    function sendNotification(dish, action) {
+        try {
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification("🍳 " + dish, {
+                    body: action,
+                    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍳</text></svg>"
+                });
+            }
+        } catch (e) {}
     }
 
 
     // ---- WAKE LOCK ----
     //
-    // The Screen Wake Lock API prevents the device screen from dimming
-    // or locking while you're cooking. Not all browsers support it,
-    // so we wrap everything in try/catch and fail silently.
+    // The Screen Wake Lock API stops the screen dimming or locking while
+    // cooking. If the browser refuses, the note under the heading tells the
+    // user to change their auto-lock setting instead.
 
-    // requestWakeLock() — Ask the browser to keep the screen on.
     async function requestWakeLock() {
         try {
-            if ("wakeLock" in navigator) {
-                wakeLock = await navigator.wakeLock.request("screen");
-            }
+            if (!("wakeLock" in navigator)) throw new Error("not supported");
+            wakeLock = await navigator.wakeLock.request("screen");
+            wakeLock.addEventListener("release", function() { wakeLock = null; });
+            wakeLockFailed = false;
         } catch (e) {
-            // Browser denied it or doesn't support it — no big deal
-            console.log("Wake Lock not available:", e);
+            wakeLock = null;
+            wakeLockFailed = true;
         }
+        updateKeepOpenNote();
     }
 
-    // releaseWakeLock() — Let the screen sleep again (called when
-    // cooking stops or the page is hidden).
     function releaseWakeLock() {
         if (wakeLock) {
             wakeLock.release();
@@ -1186,8 +1357,20 @@
         }
     }
 
-    // When the user switches tabs, the browser releases the wake lock.
-    // When they come back, we re-acquire it (but only if timers are running).
+    function updateKeepOpenNote() {
+        const note = document.getElementById("keep-open-note");
+        if (wakeLockFailed) {
+            note.textContent = "This browser can't keep the screen on by itself. Set your phone's " +
+                "auto-lock to Never while you cook: alarms can't ring once the phone locks.";
+            note.className = "keep-open-note warn";
+        } else {
+            note.textContent = "Keep this page open with the screen on. Alarms can't ring if the " +
+                "phone locks or you switch apps.";
+            note.className = "keep-open-note";
+        }
+    }
+
+    // The browser drops the wake lock when the tab is hidden; take it back on return.
     document.addEventListener("visibilitychange", function() {
         if (document.visibilityState === "visible" && timerInterval) {
             requestWakeLock();
@@ -1195,44 +1378,46 @@
     });
 
 
-    // confirmStop() — Asks the user to confirm before throwing away
-    // all running timers. Prevents accidental taps.
+    // ---- STOP ----
+
+    // confirmStop() — Asks before throwing away a cook that's still running.
     function confirmStop() {
-        if (confirm("Stop cooking and reset all timers?")) {
+        const finished = activeDishes.every(function(d) { return d.done; });
+        if (finished || confirm("Stop cooking and reset all timers?")) {
             stopCooking();
         }
     }
 
-
     // stopCooking() — Stops all timers and returns to the setup screen.
+    // The setup dish cards are still there, so you can start again.
     function stopCooking() {
         clearInterval(timerInterval);
         timerInterval = null;
         activeDishes = [];
-
-        // Reset pause state for next cooking session
         isPaused = false;
         pauseStartTime = null;
-
-        // Clear any saved session so it doesn't restore on next page load
+        hidePauseOverlay();
         localStorage.removeItem("cookTimerState");
-
-        // Let the screen sleep again
         releaseWakeLock();
+        document.title = "Cooking Timer";
+        updateAlertStrip([]);
 
         document.getElementById("timer-section").style.display = "none";
         document.getElementById("setup-section").style.display = "block";
+        updateSoundBanner();
+        renderPlanPreview();
     }
 
 
-    // ---- TIMER SESSION PERSISTENCE ----
+    // ---- SAVING THE COOK ACROSS RELOADS ----
     //
-    // Saves the active timer state to localStorage on every tick so it
-    // survives page reloads, tab switches, or accidental navigation.
-    // Fire times are absolute timestamps — restoring them naturally handles
-    // any time that passed while away (missed steps fire immediately).
+    // The cook is saved to localStorage on every tick, so it survives a page
+    // reload or accidental navigation. Fire times are absolute timestamps, so
+    // any alarm that came due while away rings as soon as the page is back.
 
-    // saveTimerState() — Serialises activeDishes to localStorage.
+    function dateOrNull(value) { return value ? new Date(value) : null; }
+    function isoOrNull(date) { return date ? date.toISOString() : null; }
+
     function saveTimerState() {
         if (activeDishes.length === 0) return;
         try {
@@ -1242,104 +1427,96 @@
                         name: dish.name,
                         currentStep: dish.currentStep,
                         done: dish.done,
+                        finishedAt: isoOrNull(dish.finishedAt),
+                        paused: dish.paused,
+                        pauseStartTime: isoOrNull(dish.pauseStartTime),
                         steps: dish.steps.map(function(step) {
                             return {
                                 action: step.action,
-                                fireTime: step.fireTime ? step.fireTime.toISOString() : null,
+                                fireTime: isoOrNull(step.fireTime),
                                 fired: step.fired,
                                 warned: step.warned,
                                 isWait: step.isWait,
-                                firedAt: step.firedAt ? step.firedAt.toISOString() : null
+                                firedAt: isoOrNull(step.firedAt)
                             };
                         })
                     };
                 }),
                 isPaused: isPaused,
-                pauseStartTime: pauseStartTime ? pauseStartTime.toISOString() : null,
+                pauseStartTime: isoOrNull(pauseStartTime),
                 timingMode: timingMode,
+                doneByText: doneByText,
+                setupDishes: setupSnapshot,
+                doneByTime: document.getElementById("done-by-time").value,
                 savedAt: new Date().toISOString()
             };
             localStorage.setItem("cookTimerState", JSON.stringify(state));
-        } catch(e) {
+        } catch (e) {
             console.log("Could not save timer state:", e);
         }
     }
 
-
-    // restoreTimerState() — Loads a saved session from localStorage and
-    // resumes the timer. Returns true if a session was restored, false if not.
+    // restoreTimerState() — Resumes a saved cook. Returns true if it did.
+    // Sound can't start until the user taps (browser rule), so the
+    // "Sound is off" banner shows until they do.
     function restoreTimerState() {
         try {
             const raw = localStorage.getItem("cookTimerState");
             if (!raw) return false;
-
             const state = JSON.parse(raw);
 
-            // Discard sessions older than 24 hours
-            const age = Date.now() - new Date(state.savedAt).getTime();
-            if (age > 24 * 60 * 60 * 1000) {
+            // Discard cooks older than 24 hours
+            if (Date.now() - new Date(state.savedAt).getTime() > 24 * 60 * 60 * 1000) {
                 localStorage.removeItem("cookTimerState");
                 return false;
             }
 
-            // Parse ISO date strings back into Date objects
             const restored = state.activeDishes.map(function(dish) {
                 return {
                     name: dish.name,
                     currentStep: dish.currentStep,
                     done: dish.done,
+                    finishedAt: dateOrNull(dish.finishedAt),
                     paused: dish.paused || false,
-                    pauseStartTime: dish.pauseStartTime ? new Date(dish.pauseStartTime) : null,
+                    pauseStartTime: dateOrNull(dish.pauseStartTime),
                     steps: dish.steps.map(function(step) {
                         return {
                             action: step.action,
-                            fireTime: step.fireTime ? new Date(step.fireTime) : null,
+                            fireTime: dateOrNull(step.fireTime),
                             fired: step.fired,
                             warned: step.warned,
                             isWait: step.isWait,
-                            firedAt: step.firedAt ? new Date(step.firedAt) : null
+                            firedAt: dateOrNull(step.firedAt)
                         };
                     })
                 };
             });
 
-            // Don't restore a session where everything is already done
-            const allDone = restored.every(function(d) { return d.done; });
-            if (allDone) {
+            if (restored.every(function(d) { return d.done; })) {
                 localStorage.removeItem("cookTimerState");
                 return false;
             }
 
             activeDishes = restored;
             isPaused = state.isPaused || false;
-            pauseStartTime = state.pauseStartTime ? new Date(state.pauseStartTime) : null;
-            timingMode = state.timingMode || "start";
+            pauseStartTime = dateOrNull(state.pauseStartTime);
+            doneByText = state.doneByText || "";
 
-            // Switch to the timer view and rebuild the cards
-            document.getElementById("setup-section").style.display = "none";
-            document.getElementById("timer-section").style.display = "block";
-            renderDishes();
-
-            // If paused, reflect that in the button, card styles, and overlay
-            if (isPaused) {
-                document.getElementById("btn-pause").textContent = "Resume All";
-                activeDishes.forEach(function(dish, index) {
-                    if (dish.done) return;
-                    const container = document.getElementById("dish-timer-" + index);
-                    if (!container) return;
-                    const card = container.querySelector(".timer-card");
-                    if (card) card.classList.add("paused");
-                });
-                showPauseOverlay();
+            // Put the setup back the way it was, for when this cook is stopped
+            setupSnapshot = state.setupDishes || [];
+            if (setupSnapshot.length > 0) {
+                document.getElementById("dishes-container").innerHTML = "";
+                setupSnapshot.forEach(function(d) { addDish(d); });
             }
+            if (state.doneByTime) document.getElementById("done-by-time").value = state.doneByTime;
+            setMode(state.timingMode || "start");
 
-            // Restart the countdown loop
-            if (timerInterval) clearInterval(timerInterval);
-            timerInterval = setInterval(updateTimers, 1000);
-
+            showTimerView();
+            if (isPaused) showPauseOverlay();
+            startLoop();
             requestWakeLock();
             return true;
-        } catch(e) {
+        } catch (e) {
             console.log("Could not restore timer state:", e);
             localStorage.removeItem("cookTimerState");
             return false;
@@ -1349,47 +1526,27 @@
 
     // ---- SAVED DISHES (Firestore) ----
     //
-    // Previously, saved dishes were stored in localStorage (browser-only).
-    // Now they're stored in Firestore (Google's cloud database), so they:
-    //   - Sync across all devices (phone, laptop, tablet)
-    //   - Are private to each user (secured by Firestore rules)
-    //   - Persist even if browser data is cleared
-    //
-    // Firestore structure:
+    // Saved dishes live in Firestore, so they sync across devices and are
+    // private to each user (secured by Firestore rules):
     //   users/{userId}/dishes/{dishId}
     //     → { name: "Pasta", steps: [{ action: "Boil water", minutes: 5 }, ...] }
-    //
-    // We use onSnapshot() to listen for real-time changes. This means if you
-    // save a dish on your phone, it appears on your laptop instantly.
+    // onSnapshot() keeps cachedSavedDishes in sync in real time.
 
-    // setupDishesListener(user) — Starts (or stops) listening to a user's
-    // saved dishes in Firestore. Called when auth state changes.
     function setupDishesListener(user) {
-        // Clean up any previous listener
         if (unsubscribeDishes) {
             unsubscribeDishes();
             unsubscribeDishes = null;
         }
-
         if (!user) {
-            // No user logged in — clear the cache and panel
             cachedSavedDishes = [];
             renderSavedDishes();
             return;
         }
-
-        // onSnapshot sets up a REAL-TIME LISTENER.
-        // Every time the dishes collection changes (add, edit, delete),
-        // this callback runs automatically — no need to manually refresh.
         unsubscribeDishes = db.collection("users").doc(user.uid)
             .collection("dishes").onSnapshot(function(snapshot) {
                 cachedSavedDishes = [];
                 snapshot.forEach(function(doc) {
-                    cachedSavedDishes.push({
-                        id: doc.id,          // Firestore auto-generated ID
-                        name: doc.data().name,
-                        steps: doc.data().steps
-                    });
+                    cachedSavedDishes.push({ id: doc.id, name: doc.data().name, steps: doc.data().steps || [] });
                 });
                 renderSavedDishes();
             }, function(error) {
@@ -1397,16 +1554,24 @@
             });
     }
 
+    function dishesRef() {
+        return db.collection("users").doc(auth.currentUser.uid).collection("dishes");
+    }
 
-    // saveDish(dishId) — Reads a dish card's name and steps from the DOM,
-    // then saves it to Firestore under the current user's account.
-    function saveDish(dishId) {
-        const user = auth.currentUser;
-        if (!user) {
+    // flashButton(button, text) — Briefly shows e.g. "Saved ✓" on a button.
+    function flashButton(button, text) {
+        if (!button) return;
+        const original = button.textContent;
+        button.textContent = text;
+        setTimeout(function() { button.textContent = original; }, 1500);
+    }
+
+    // saveDish(dishId, button) — Saves a setup dish card to Firestore.
+    function saveDish(dishId, button) {
+        if (!auth.currentUser) {
             alert("You must be signed in to save dishes.");
             return;
         }
-
         const card = document.getElementById("dish-" + dishId);
         if (!card) return;
 
@@ -1415,120 +1580,61 @@
             alert("Give the dish a name before saving.");
             return;
         }
-
-        // Read all step rows from this dish card
-        const stepRows = card.querySelectorAll(".step-row");
-        const steps = [];
-
-        stepRows.forEach(function(row) {
-            const action = row.querySelector(".step-action").value.trim() || "Do something";
-            const minutes = parseFloat(row.querySelector(".step-minutes").value) || 0;
-            steps.push({ action: action, minutes: minutes });
-        });
-
-        if (steps.length === 0) {
+        const result = readSteps(card.querySelector(".steps-container"), name);
+        if (result.steps.length === 0) {
             alert("Add at least one step before saving.");
             return;
         }
-
-        // Reference to this user's dishes collection in Firestore
-        const dishesRef = db.collection("users").doc(user.uid).collection("dishes");
-
-        // Check if a dish with this name already exists (using our local cache)
-        const existing = cachedSavedDishes.find(function(d) { return d.name === name; });
-
-        if (existing) {
-            // A dish with this name already exists — ask to overwrite
-            if (!confirm('"' + name + '" is already saved. Overwrite it?')) {
-                return;
-            }
-            // Update the existing Firestore document
-            dishesRef.doc(existing.id).set({ name: name, steps: steps });
-        } else {
-            // Add a new document (Firestore auto-generates a unique ID)
-            dishesRef.add({ name: name, steps: steps });
+        if (result.problems.length > 0) {
+            alert("Fix these first:\n\n• " + result.problems.join("\n• "));
+            return;
         }
-        // No need to call renderSavedDishes — the onSnapshot listener does it!
+
+        const data = { name: name, steps: result.steps };
+        const existing = cachedSavedDishes.find(function(d) { return d.name === name; });
+        let saving;
+        if (existing) {
+            if (!confirm('"' + name + '" is already saved. Overwrite it?')) return;
+            saving = dishesRef().doc(existing.id).set(data);
+        } else {
+            saving = dishesRef().add(data);
+        }
+        saving.then(function() {
+            flashButton(button, "Saved ✓");
+        }, function(error) {
+            alert("Couldn't save: " + error.message);
+        });
+        // No need to re-render the list — the onSnapshot listener does it
     }
 
-
-    // deleteSavedDish(docId) — Removes a saved dish from Firestore.
-    // docId is the Firestore document ID (a string like "abc123xyz").
+    // deleteSavedDish(docId) — Removes a saved dish from Firestore, after asking.
     function deleteSavedDish(docId) {
-        const user = auth.currentUser;
-        if (!user) return;
-
-        db.collection("users").doc(user.uid).collection("dishes").doc(docId).delete();
-        // onSnapshot listener automatically updates the UI
+        if (!auth.currentUser) return;
+        const dish = cachedSavedDishes.find(function(d) { return d.id === docId; });
+        if (!confirm('Delete the saved dish "' + (dish ? dish.name : "") + '"? This can\'t be undone.')) return;
+        dishesRef().doc(docId).delete();
     }
 
-
-    // loadDish(docId) — Creates a new dish card pre-filled with a saved
-    // dish's name and steps. Reads from the local cache.
+    // loadDish(docId) — Adds a saved dish to the meal as a filled-in card.
     function loadDish(docId) {
         const recipe = cachedSavedDishes.find(function(d) { return d.id === docId; });
         if (!recipe) return;
 
-        // Remove any blank dish cards before loading
-        const container = document.getElementById("dishes-container");
-        Array.from(container.querySelectorAll(".dish-card")).forEach(function(card) {
-            const nameVal = card.querySelector(".dish-name").value.trim();
-            const hasStepContent = Array.from(card.querySelectorAll(".step-action"))
-                .some(function(i) { return i.value.trim(); });
-            if (!nameVal && !hasStepContent) container.removeChild(card);
+        // Remove blank dish cards first, so loading doesn't leave empties behind
+        document.querySelectorAll("#dishes-container .dish-card").forEach(function(card) {
+            const hasName = card.querySelector(".dish-name").value.trim();
+            const hasSteps = Array.from(card.querySelectorAll(".step-action, .step-minutes"))
+                .some(function(input) { return input.value.trim(); });
+            if (!hasName && !hasSteps) card.remove();
         });
 
-        // Create a new empty dish card
-        dishCounter++;
-        const dishId = dishCounter;
-
-        const dishDiv = document.createElement("div");
-        dishDiv.className = "dish-card";
-        dishDiv.id = "dish-" + dishId;
-
-        dishDiv.innerHTML =
-            '<div class="dish-header">' +
-                '<input type="text" placeholder="Dish name (e.g. Chicken)" class="dish-name">' +
-                '<div class="dish-header-buttons">' +
-                    '<button onclick="saveDish(' + dishId + ')" class="btn btn-save">Save</button>' +
-                    '<button onclick="removeDish(' + dishId + ')" class="btn btn-remove">Remove</button>' +
-                '</div>' +
-            '</div>' +
-            '<div class="steps-container" id="steps-' + dishId + '"></div>' +
-            '<button onclick="addStep(' + dishId + ')" class="btn btn-add-step">+ Add Step</button>';
-
-        document.getElementById("dishes-container").appendChild(dishDiv);
-
-        // Fill in the dish name
-        dishDiv.querySelector(".dish-name").value = recipe.name;
-
-        // Add a step row for each saved step and fill in the values
-        const stepsContainer = document.getElementById("steps-" + dishId);
-
-        recipe.steps.forEach(function(step) {
-            const stepDiv = document.createElement("div");
-            stepDiv.className = "step-row";
-
-            stepDiv.innerHTML =
-                '<input type="text" placeholder="Action (e.g. Flip chicken)" class="step-action">' +
-                '<input type="number" placeholder="Min" min="0" step="0.1" class="step-minutes" title="How long this step takes (decimals OK, e.g. 2.5 = 2m 30s)">' +
-                '<span class="step-label">min</span>' +
-                '<button onclick="this.parentElement.remove()" class="btn btn-remove-step">✕</button>';
-
-            stepsContainer.appendChild(stepDiv);
-
-            // Set the values from the saved recipe
-            stepDiv.querySelector(".step-action").value = step.action;
-            stepDiv.querySelector(".step-minutes").value = step.minutes;
-        });
+        const card = addDish(recipe);
+        card.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
-
-    // renderSavedDishes() — Rebuilds the saved dishes panel from the
-    // cachedSavedDishes array (kept in sync with Firestore by onSnapshot).
+    // renderSavedDishes() — Rebuilds the saved dishes list from the cache.
     function renderSavedDishes() {
         const container = document.getElementById("saved-dishes-container");
-
         if (cachedSavedDishes.length === 0) {
             container.innerHTML =
                 '<p class="saved-empty">No saved dishes yet. Use the "Save" button on a dish to save it.</p>';
@@ -1536,23 +1642,18 @@
         }
 
         container.innerHTML = "";
-
         cachedSavedDishes.forEach(function(dish) {
             const div = document.createElement("div");
             div.className = "saved-dish-row";
             div.id = "saved-dish-row-" + dish.id;
 
-            // Build a short summary of the steps, e.g. "3 steps, 16 min total"
-            const totalMin = dish.steps.reduce(function(sum, s) { return sum + s.minutes; }, 0);
-            const totalDisplay = (totalMin % 1 === 0) ? totalMin : totalMin.toFixed(1);
+            const totalMin = dish.steps.reduce(function(sum, s) { return sum + (s.minutes || 0); }, 0);
             const summary = dish.steps.length + " step" + (dish.steps.length === 1 ? "" : "s") +
-                ", " + totalDisplay + " min total";
+                ", " + formatMinutes(totalMin) + " total";
 
-            // dish.id is a Firestore document ID (string), so we quote it
-            // with escaped single quotes in the onclick handler
             div.innerHTML =
                 '<div class="saved-dish-info">' +
-                    '<span class="saved-dish-name">' + dish.name + '</span>' +
+                    '<span class="saved-dish-name">' + escapeHtml(dish.name) + '</span>' +
                     '<span class="saved-dish-summary">' + summary + '</span>' +
                 '</div>' +
                 '<div class="saved-dish-buttons">' +
@@ -1560,19 +1661,15 @@
                     '<button onclick="editSavedDish(\'' + dish.id + '\')" class="btn btn-save">Edit</button>' +
                     '<button onclick="deleteSavedDish(\'' + dish.id + '\')" class="btn btn-delete">Delete</button>' +
                 '</div>';
-
             container.appendChild(div);
         });
     }
 
-
     // editSavedDish(docId) — Replaces a saved dish row with an inline edit form.
     function editSavedDish(docId) {
         const dish = cachedSavedDishes.find(function(d) { return d.id === docId; });
-        if (!dish) return;
-
         const row = document.getElementById("saved-dish-row-" + docId);
-        if (!row) return;
+        if (!dish || !row) return;
 
         row.innerHTML =
             '<div class="saved-dish-edit">' +
@@ -1583,48 +1680,25 @@
                         '<button onclick="renderSavedDishes()" class="btn btn-remove">Cancel</button>' +
                     '</div>' +
                 '</div>' +
-                '<div id="saved-edit-steps-' + docId + '"></div>' +
+                '<div class="saved-edit-steps" id="saved-edit-steps-' + docId + '"></div>' +
                 '<button onclick="addEditStep(\'' + docId + '\')" class="btn btn-add-step">+ Add Step</button>' +
             '</div>';
 
-        // Set values after insertion to avoid XSS via innerHTML
         row.querySelector(".saved-edit-name").value = dish.name;
-
-        dish.steps.forEach(function(step) {
-            addEditStep(docId, step.action, step.minutes);
-        });
+        dish.steps.forEach(function(step) { addEditStep(docId, step); });
     }
 
-
-    // addEditStep(docId, action, minutes) — Adds a step row to an inline edit form.
-    // action and minutes are optional — omit them to add a blank row.
-    function addEditStep(docId, action, minutes) {
+    // addEditStep(docId, step) — Adds a step row to an inline edit form.
+    function addEditStep(docId, step) {
         const container = document.getElementById("saved-edit-steps-" + docId);
         if (!container) return;
-
-        const stepDiv = document.createElement("div");
-        stepDiv.className = "step-row";
-
-        stepDiv.innerHTML =
-            '<input type="text" placeholder="Action (e.g. Flip chicken)" class="step-action">' +
-            '<input type="number" placeholder="Min" min="0" step="0.1" class="step-minutes">' +
-            '<span class="step-label">min</span>' +
-            '<button onclick="this.parentElement.remove()" class="btn btn-remove-step">✕</button>';
-
-        container.appendChild(stepDiv);
-
-        // Set values after insertion to avoid XSS via innerHTML
-        if (action !== undefined) stepDiv.querySelector(".step-action").value = action;
-        if (minutes !== undefined) stepDiv.querySelector(".step-minutes").value = minutes;
+        container.appendChild(buildStepRow(step));
+        relabelSteps(container);
     }
 
-
-    // saveEditedDish(docId) — Reads the inline edit form and updates the
-    // Firestore document. The onSnapshot listener re-renders the panel.
+    // saveEditedDish(docId) — Saves the inline edit form back to Firestore.
     function saveEditedDish(docId) {
-        const user = auth.currentUser;
-        if (!user) return;
-
+        if (!auth.currentUser) return;
         const row = document.getElementById("saved-dish-row-" + docId);
         if (!row) return;
 
@@ -1633,34 +1707,44 @@
             alert("Give the dish a name.");
             return;
         }
-
-        const steps = [];
-        row.querySelectorAll(".step-row").forEach(function(stepRow) {
-            const action = stepRow.querySelector(".step-action").value.trim() || "Do something";
-            const minutes = parseFloat(stepRow.querySelector(".step-minutes").value) || 0;
-            steps.push({ action: action, minutes: minutes });
-        });
-
-        if (steps.length === 0) {
+        const result = readSteps(row.querySelector(".saved-edit-steps"), name);
+        if (result.steps.length === 0) {
             alert("Add at least one step.");
             return;
         }
-
-        db.collection("users").doc(user.uid).collection("dishes").doc(docId).set({ name: name, steps: steps });
-        // onSnapshot listener will re-render the panel automatically
+        if (result.problems.length > 0) {
+            alert("Fix these first:\n\n• " + result.problems.join("\n• "));
+            return;
+        }
+        dishesRef().doc(docId).set({ name: name, steps: result.steps });
     }
 
 
     // ---- INITIALIZE ----
-    // Add one dish automatically when the page loads so it's not empty.
-    // (The setup section is hidden until login — this just pre-creates the card.)
-    addDish();
 
-    // Load saved sound preferences from localStorage.
+    // Start with one blank dish card (the setup is hidden until sign-in)
+    addDish();
     loadSoundPrefs();
 
-    // Saved dishes are now loaded automatically by the Firestore onSnapshot
-    // listener, which is set up when the user logs in (see setupDishesListener).
+    // Keep the plan preview current as the user types, and as the clock moves
+    document.getElementById("setup-section").addEventListener("input", renderPlanPreview);
+    setInterval(function() {
+        if (document.getElementById("setup-section").style.display !== "none") renderPlanPreview();
+    }, 15000);
+
+    // Remember whether "How it works" was collapsed
+    (function() {
+        const help = document.getElementById("how-it-works");
+        try {
+            if (localStorage.getItem("cookTimerHelpOpen") === "false") help.open = false;
+        } catch (e) {}
+        help.addEventListener("toggle", function() {
+            try { localStorage.setItem("cookTimerHelpOpen", String(help.open)); } catch (e) {}
+        });
+    })();
+
+    // The sound-off banner just needs a tap; the global tap listener does the work
+    document.getElementById("sound-banner").addEventListener("click", unlockAudio);
 
     </script>
 </body>
