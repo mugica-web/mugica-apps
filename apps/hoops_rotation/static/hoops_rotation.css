@@ -372,22 +372,71 @@ table.grid .num {
     color: var(--amber);
 }
 
-.by-player td.on {
-    font-family: var(--numeric);
-    font-size: 1.1em;
-    text-align: center;
-    background-color: var(--surface-2);
-}
-
-.by-player td.off {
-    text-align: center;
+.seg-len {
+    font-family: var(--sans);
+    font-size: 0.75em;
     color: var(--faint);
 }
 
-.by-player th.shift-col {
+table.grid .num .pct {
+    font-size: 0.8em;
+    color: var(--muted);
+}
+
+.bad-note {
+    color: var(--amber);
+}
+
+/* ---- Timeline bars (minutes by player) ---- */
+
+.by-player .tl-cell {
+    width: 100%;
+    min-width: 140px;
+    vertical-align: middle;
+}
+
+.timeline {
+    position: relative;
+    height: 24px;
+    background-color: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.timeline-scale {
+    background: none;
+    height: 16px;
+}
+
+.tl-period-label {
+    position: absolute;
+    top: 0;
     text-align: center;
     font-family: var(--numeric);
-    letter-spacing: 0;
+    letter-spacing: 0.04em;
+}
+
+.tl-break {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: var(--rule-strong);
+}
+
+.tl-on {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    background-color: var(--text);
+    color: var(--bg);
+    border-left: 1px solid var(--bg);
+    font-family: var(--numeric);
+    font-size: 0.95em;
+    line-height: 20px;
+    text-align: center;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .unsaved {
@@ -519,8 +568,7 @@ dialog.swap::backdrop {
 
     .plan-meta,
     table.grid thead th,
-    .changes,
-    .by-player td.off {
+    .changes {
         color: #333;
     }
 
@@ -548,8 +596,31 @@ dialog.swap::backdrop {
         text-decoration: underline;
     }
 
-    .by-player td.on {
-        background: #e6e6e6;
+    .timeline {
+        background: #eee;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .timeline-scale {
+        background: none;
+    }
+
+    .tl-on {
+        background-color: #000;
+        color: #fff;
+        border-left-color: #fff;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .tl-break {
+        background-color: #888;
+    }
+
+    .seg-len,
+    table.grid .num .pct {
+        color: #333;
     }
 
     .off-target {

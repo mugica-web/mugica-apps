@@ -1,20 +1,20 @@
 // Hoops Rotation — the planning engine. No DOM, no Firebase: the page calls
 // RotationEngine.plan(...) and Node can load it for testing.
 //
-// The game is cut into S equal shifts (periods × (subs per period + 1)).
-// Every shift has exactly one player at each position 1–5. Shift 1 is the
-// starting five, the last shift is the closing five.
+// The game is a grid of equal ticks (1 minute or 30 seconds). The planner
+// picks a lineup for every tick, which means it also picks when subs happen.
+// Every tick has exactly one player at each position 1–5. The first tick is
+// the starting five; the closing five play the last stretch.
 //
-// Three stages:
+// Stages:
 //   1. Targets: each player's percent is scaled so the team totals 500%
-//      (5 players on the floor), nobody above 100%. Target shifts = share × S.
-//   2. Shift counts: a min-cost flow picks how many shifts each player gets,
-//      minimising Σ (count − target)² while every shift can still be filled
-//      1–5 with eligible players and starters/closers are respected.
-//   3. Arrangement: a local search moves shifts around (keeping each count)
-//      so each player's time is spread evenly through the game, then a
-//      dynamic program picks positions so players change spots as little
-//      as possible from one shift to the next.
+//      (5 players on the floor), nobody above 100%.
+//   2. Search: simulated annealing over the whole grid (see `search`), with
+//      the sub rules (max players in per sub, minimum stint) as penalties
+//      that tighten as it runs, and minutes, even spacing and few stoppages
+//      as goals. Several runs; the best one wins.
+//   3. Positions: a dynamic program picks positions per segment so players
+//      change spots as little as possible.
 
 (function (root) {
     "use strict";
@@ -106,104 +106,191 @@
         go(0, 0);
         return out;
     }
-
-    // ---- Stage 2: shift counts by min-cost flow ----
+    // ---- The schedule search ----
     //
-    // source → player (one arc per extra shift, with increasing cost)
-    //        → (player, shift) cap 1
-    //        → (shift, position) cap 1, if the player plays that position
-    //        → sink cap 1
-    // A full flow (5 per shift) is a legal schedule; its cost is
-    // Σ (count − target)² up to a constant.
+    // The game is a grid of T ticks (e.g. 1 minute each). mask[t] is the set
+    // of players on the floor during tick t (bit i = player i). A sub happens
+    // at boundary t (between tick t−1 and t) when mask[t] ≠ mask[t−1].
+    //
+    // Fixed: tick 0 is the starters; the last `closeTicks` ticks are the
+    // closers. Everything in between is searched by simulated annealing.
+    //
+    // Rules (penalised heavily, and the penalty grows during the search so
+    // the final plan obeys them whenever it can):
+    //   - at most `maxSubs` players come in at one sub, except at period breaks
+    //   - every stint on the floor lasts at least `minStint` ticks
+    // Goals (traded off against each other):
+    //   - each player's minutes close to target (squared minutes off)
+    //   - each player's time spread evenly through the game
+    //   - few sub stoppages (two players in at once beats two separate subs)
+    // Hard: every tick has a lineup that can cover 1–5 (moves that break it
+    // are never made).
 
-    function MinCostFlow(n) {
-        this.n = n;
-        this.graph = [];
-        for (let i = 0; i < n; i++) this.graph.push([]);
-        this.edges = []; // {to, cap, cost}
+    const WEIGHTS = {
+        spread: 1,    // per player, average squared minutes off an even pace
+        event: 2,     // per sub stoppage (not counting period breaks)
+        bench: 1,     // squared minutes of each stretch on the bench, per game minute
+        gap: 1.5      // per minute two stoppages are closer than the minimum stint
+    };
+
+    function popcount(x) {
+        x = x - ((x >>> 1) & 0x55555555);
+        x = (x & 0x33333333) + ((x >>> 2) & 0x33333333);
+        return (((x + (x >>> 4)) & 0x0F0F0F0F) * 0x01010101) >>> 24;
     }
-    MinCostFlow.prototype.addEdge = function (u, v, cap, cost) {
-        this.graph[u].push(this.edges.length);
-        this.edges.push({ to: v, cap: cap, cost: cost });
-        this.graph[v].push(this.edges.length);
-        this.edges.push({ to: u, cap: 0, cost: -cost });
-        return this.edges.length - 2;
-    };
-    // Successive shortest paths (SPFA handles the negative arc costs).
-    MinCostFlow.prototype.run = function (s, t) {
-        const n = this.n, E = this.edges, G = this.graph;
-        let flow = 0;
-        const EPS = 1e-9;
-        for (;;) {
-            const dist = new Array(n).fill(Infinity);
-            const inQ = new Array(n).fill(false);
-            const prevEdge = new Array(n).fill(-1);
-            dist[s] = 0;
-            const q = [s];
-            inQ[s] = true;
-            let head = 0;
-            while (head < q.length) {
-                const u = q[head++];
-                inQ[u] = false;
-                const adj = G[u];
-                for (let k = 0; k < adj.length; k++) {
-                    const e = E[adj[k]];
-                    if (e.cap > 0 && dist[u] + e.cost < dist[e.to] - EPS) {
-                        dist[e.to] = dist[u] + e.cost;
-                        prevEdge[e.to] = adj[k];
-                        if (!inQ[e.to]) { inQ[e.to] = true; q.push(e.to); }
-                    }
-                }
+
+    function search(ctx, rng) {
+        const n = ctx.n, T = ctx.T, L = ctx.L, tickMin = ctx.tickMin;
+        const mask = new Array(T);
+        for (let t = 0; t < T; t++) mask[t] = t < L ? ctx.starterMask : ctx.closerMask;
+
+        function on(i, t) { return (mask[t] >>> i) & 1; }
+
+        // Per player: soft cost (minutes + spread) and rule breaks (short stints).
+        function playerCost(i) {
+            let count = 0;
+            for (let t = 0; t < T; t++) count += on(i, t);
+            const off = (count - ctx.targets[i]) * tickMin;
+            let soft = off * off;
+            let cum = 0, spread = 0;
+            for (let t = 0; t < T; t++) {
+                cum += on(i, t);
+                const d = (cum - count * (t + 1) / T) * tickMin;
+                spread += d * d;
             }
-            if (dist[t] === Infinity) break;
-            // Every arc into the sink has capacity 1, so push 1 unit.
-            let v = t;
-            while (v !== s) {
-                const id = prevEdge[v];
-                E[id].cap -= 1;
-                E[id ^ 1].cap += 1;
-                v = E[id ^ 1].to;
+            soft += ctx.w.spread * spread / T;
+            // Long sits: one 12-minute sit costs far more than two 6-minute ones.
+            let benchRun = 0, bench = 0;
+            for (let t = 0; t <= T; t++) {
+                if (t < T && !on(i, t)) { benchRun++; continue; }
+                bench += benchRun * benchRun;
+                benchRun = 0;
             }
-            flow += 1;
+            soft += ctx.w.bench * bench * tickMin * tickMin / (T * tickMin);
+            let viol = 0, run = 0;
+            for (let t = 0; t <= T; t++) {
+                if (t < T && on(i, t)) { run++; continue; }
+                if (run > 0 && run < ctx.minStint) viol += ctx.minStint - run;
+                run = 0;
+            }
+            return { soft: soft, viol: viol };
         }
-        return flow;
-    };
+
+        // The whole game's subs: a cost per stoppage, a cost when two
+        // stoppages come close together (period starts count as stoppages
+        // here, since a sub just after a break could have been made at it),
+        // and rule breaks for too many players in at once.
+        function subsCost() {
+            let soft = 0, viol = 0, last = 0;
+            for (let t = 1; t < T; t++) {
+                const isBreak = t % ctx.periodTicks === 0;
+                const ins = isBreak ? 0 : popcount(mask[t] & ~mask[t - 1]);
+                if (ins === 0 && !isBreak) continue;
+                const gap = t - last;
+                if (gap < ctx.minStint) soft += ctx.w.gap * (ctx.minStint - gap) * tickMin;
+                last = t;
+                if (isBreak) continue;
+                soft += ctx.w.event;
+                viol += Math.max(0, ins - ctx.maxSubs);
+            }
+            return { soft: soft, viol: viol };
+        }
+
+        const pc = [];
+        let soft = 0, viol = 0;
+        for (let i = 0; i < n; i++) { pc.push(playerCost(i)); soft += pc[i].soft; viol += pc[i].viol; }
+        let sc = subsCost();
+        soft += sc.soft; viol += sc.viol;
+
+        if (L <= 1) return { mask: mask, soft: soft, viol: viol };
+
+        const ITER = ctx.iterations;
+        let temp = 4.0;
+        const tempEnd = 0.01;
+        const cool = Math.pow(tempEnd / temp, 1 / ITER);
+        let wHard = 2;
+        const hardEnd = 200;
+        const hardGrow = Math.pow(hardEnd / wHard, 1 / ITER);
+
+        for (let it = 0; it < ITER; it++, temp *= cool, wHard *= hardGrow) {
+            // Pick a tick, someone on the floor (x) and someone on the bench (y).
+            const t = 1 + Math.floor(rng() * (L - 1));
+            const m = mask[t];
+            let x = -1;
+            for (let tries = 0; tries < 10 && x === -1; tries++) {
+                const c = Math.floor(rng() * n);
+                if ((m >>> c) & 1) x = c;
+            }
+            if (x === -1) continue;
+            const y = Math.floor(rng() * n);
+            if ((m >>> y) & 1) continue;
+
+            // The longest stretch around t where x is on and y is off; swap y
+            // in for x over all of it or part of it (sharing one end).
+            let lo = t, hi = t + 1;
+            while (lo - 1 >= 1 && on(x, lo - 1) && !on(y, lo - 1)) lo--;
+            while (hi < L && on(x, hi) && !on(y, hi)) hi++;
+            let a = lo, b = hi;
+            const r = rng();
+            if (r < 0.35) { /* whole stretch */ }
+            else if (r < 0.675) b = t + 1 + Math.floor(rng() * (hi - t));
+            else a = lo + Math.floor(rng() * (t - lo + 1));
+
+            const flip = (1 << x) | (1 << y);
+            let okFill = true;
+            for (let u = a; u < b && okFill; u++) okFill = ctx.fillOk(mask[u] ^ flip);
+            if (!okFill) continue;
+
+            for (let u = a; u < b; u++) mask[u] ^= flip;
+            const nx = playerCost(x), ny = playerCost(y), ns = subsCost();
+            const dSoft = nx.soft + ny.soft + ns.soft - pc[x].soft - pc[y].soft - sc.soft;
+            const dViol = nx.viol + ny.viol + ns.viol - pc[x].viol - pc[y].viol - sc.viol;
+            const delta = dSoft + wHard * dViol;
+            if (delta <= 0 || rng() < Math.exp(-delta / temp)) {
+                pc[x] = nx; pc[y] = ny; sc = ns;
+                soft += dSoft; viol += dViol;
+            } else {
+                for (let u = a; u < b; u++) mask[u] ^= flip;
+            }
+        }
+        return { mask: mask, soft: soft, viol: viol };
+    }
 
     // ---- Main entry point ----
 
-    // plan({ players, shifts, seed })
-    //   players: [{ id, name, pct, positions: [1..5], starter, closer }]
-    //            (only the players who are at the game)
-    //   shifts:  number of equal shifts in the game
-    //   seed:    any integer; a different seed gives a different arrangement
-    //            with the same shift counts
-    // Returns { ok: true, lineups, counts, targets, shares }
-    //   lineups[s] = [id at 1, id at 2, ..., id at 5]
-    //   counts[id] = shifts planned, targets[id] = target shifts (fractional)
+    // plan(opts)
+    //   players:     [{ id, name, pct, positions: [1..5], starter, closer }] (those at the game)
+    //   ticks:       number of grid ticks in the game (T)
+    //   tickMinutes: length of one tick in minutes
+    //   periodTicks: ticks per period (breaks allow any number of changes)
+    //   maxSubs:     most players who can come in at one sub (outside breaks)
+    //   minStint:    shortest time on the floor, in ticks
+    //   closeTicks:  the closers play the last this-many ticks
+    //   seed:        any integer; a different seed gives a different plan
+    // Returns { ok: true, segments, counts, targets, warnings, issues }
+    //   segments = [{ start, end, slots: [id at 1, ..., id at 5] }] in ticks
+    //   counts[id], targets[id] in ticks; issues = check(...) of the result
     // or { ok: false, errors: [strings] }.
     function plan(opts) {
         const players = opts.players || [];
-        const S = opts.shifts;
-        const rng = makeRng(opts.seed == null ? 1 : opts.seed);
+        const T = opts.ticks;
         const errors = [];
 
-        if (!(S >= 1)) errors.push("The game needs at least one shift.");
         if (players.length < NPOS) {
             errors.push("Only " + players.length + " player" + (players.length === 1 ? "" : "s") +
                 " at the game. You need at least 5.");
         }
+        if (players.length > 30) errors.push("At most 30 players.");
         const noPos = players.filter(function (p) { return !p.positions || p.positions.length === 0; });
         if (noPos.length) {
-            errors.push(listNames(noPos) + (noPos.length === 1 ? " has" : " have") +
-                " no positions selected.");
+            errors.push(listNames(noPos) + (noPos.length === 1 ? " has" : " have") + " no positions selected.");
         }
         const starters = players.filter(function (p) { return p.starter; });
         const closers = players.filter(function (p) { return p.closer; });
-        if (starters.length !== NPOS) {
-            errors.push("Pick exactly 5 starters (" + starters.length + " picked).");
-        }
-        if (closers.length !== NPOS) {
-            errors.push("Pick exactly 5 closers (" + closers.length + " picked).");
+        if (starters.length !== NPOS) errors.push("Pick exactly 5 starters (" + starters.length + " picked).");
+        if (closers.length !== NPOS) errors.push("Pick exactly 5 closers (" + closers.length + " picked).");
+        if (!(opts.closeTicks >= 1 && opts.closeTicks < T)) {
+            errors.push("The closing stretch has to be shorter than the game.");
         }
         if (errors.length) return { ok: false, errors: errors };
 
@@ -216,7 +303,6 @@
         const idx = players.map(function (_, i) { return i; });
         const starterIdx = idx.filter(function (i) { return players[i].starter; });
         const closerIdx = idx.filter(function (i) { return players[i].closer; });
-
         if (!canFill(starterIdx, posMasks)) {
             errors.push("The starters can't cover 1–5 with one player at each position. " +
                 coverageHint(starterIdx, players, posMasks));
@@ -225,108 +311,138 @@
             errors.push("The closers can't cover 1–5 with one player at each position. " +
                 coverageHint(closerIdx, players, posMasks));
         }
-        if (S === 1 && starterIdx.join() !== closerIdx.join()) {
-            errors.push("With only one shift, the starters and closers have to be the same five.");
-        }
         if (errors.length) return { ok: false, errors: errors };
 
-        // Which shifts may player i play?
-        function allowed(i, s) {
-            if (s === 0 && !players[i].starter) return false;
-            if (s === S - 1 && !players[i].closer) return false;
-            return true;
-        }
-
-        // Middle shifts can use anyone: check the whole group can cover 1–5.
-        if (S >= 3 && !anyFill(idx, posMasks)) {
-            return { ok: false, errors: ["No five players at this game can cover 1–5. " +
-                coverageHint(idx, players, posMasks)] };
-        }
-
         const shares = scaleShares(players.map(function (p) { return p.pct; }));
-        const targets = shares.map(function (x) { return x * S; });
-
-        // Build the flow network.
-        const SRC = 0;
-        const P0 = 1;                      // player nodes
-        const PS0 = P0 + n;                // (player, shift) nodes
-        const SP0 = PS0 + n * S;           // (shift, position) nodes
-        const SINK = SP0 + S * NPOS;
-        const mcf = new MinCostFlow(SINK + 1);
-
-        const psEdge = []; // psEdge[i][s] = edge id player→(player, shift)
-        for (let i = 0; i < n; i++) {
-            let avail = 0;
-            psEdge.push([]);
-            for (let s = 0; s < S; s++) {
-                if (allowed(i, s)) {
-                    avail++;
-                    psEdge[i][s] = mcf.addEdge(P0 + i, PS0 + i * S + s, 1, 0);
-                    for (let pos = 0; pos < NPOS; pos++) {
-                        if (posMasks[i] & (1 << pos)) {
-                            mcf.addEdge(PS0 + i * S + s, SP0 + s * NPOS + pos, 1, 0);
-                        }
-                    }
-                } else {
-                    psEdge[i][s] = -1;
+        const fillCache = new Map();
+        const ctx = {
+            n: n, T: T, L: T - opts.closeTicks,
+            tickMin: opts.tickMinutes,
+            periodTicks: opts.periodTicks,
+            maxSubs: opts.maxSubs,
+            minStint: opts.minStint,
+            targets: shares.map(function (s) { return s * T; }),
+            starterMask: starterIdx.reduce(function (m, i) { return m | (1 << i); }, 0),
+            closerMask: closerIdx.reduce(function (m, i) { return m | (1 << i); }, 0),
+            w: Object.assign({}, WEIGHTS, opts.weights || {}),
+            iterations: opts.iterations || Math.min(300000, 5000 * T),
+            fillOk: function (m) {
+                let v = fillCache.get(m);
+                if (v === undefined) {
+                    const list = [];
+                    for (let i = 0; i < n; i++) if ((m >>> i) & 1) list.push(i);
+                    v = canFill(list, posMasks);
+                    fillCache.set(m, v);
                 }
+                return v;
             }
-            // The k-th shift for player i adds (k − T)² − (k − 1 − T)² = 2k − 1 − 2T.
-            // A tiny index-based term breaks exact ties the same way every time.
-            for (let k = 1; k <= avail; k++) {
-                mcf.addEdge(SRC, P0 + i, 1, 2 * k - 1 - 2 * targets[i] + 1e-7 * (i + 1) * k);
-            }
-        }
-        for (let s = 0; s < S; s++) {
-            for (let pos = 0; pos < NPOS; pos++) {
-                mcf.addEdge(SP0 + s * NPOS + pos, SINK, 1, 0);
-            }
-        }
-        const flow = mcf.run(SRC, SINK);
-        if (flow < S * NPOS) {
-            return { ok: false, errors: ["Couldn't fill 1–5 in every shift with these players. " +
-                coverageHint(idx, players, posMasks)] };
+        };
+
+        // A few independent runs; keep the one with the fewest rule breaks,
+        // then the lowest cost.
+        const rng = makeRng(opts.seed == null ? 1 : opts.seed);
+        const runs = opts.restarts || 3;
+        let best = null;
+        for (let r = 0; r < runs; r++) {
+            const res = search(ctx, makeRng(Math.floor(rng() * 4294967296)));
+            if (!best || res.viol < best.viol || (res.viol === best.viol && res.soft < best.soft)) best = res;
         }
 
-        // Read the schedule: on[s] = sorted list of players on the floor.
-        const on = [];
-        for (let s = 0; s < S; s++) on.push([]);
-        for (let i = 0; i < n; i++) {
-            for (let s = 0; s < S; s++) {
-                const id = psEdge[i][s];
-                if (id >= 0 && mcf.edges[id].cap === 0) on[s].push(i);
-            }
+        // Collapse equal neighbouring ticks into segments.
+        const segs = [];
+        for (let t = 0; t < T; t++) {
+            if (segs.length && segs[segs.length - 1].mask === best.mask[t]) segs[segs.length - 1].end = t + 1;
+            else segs.push({ start: t, end: t + 1, mask: best.mask[t] });
         }
-        const counts = new Array(n).fill(0);
-        on.forEach(function (list) { list.forEach(function (i) { counts[i]++; }); });
+        const onLists = segs.map(function (s) {
+            const list = [];
+            for (let i = 0; i < n; i++) if ((s.mask >>> i) & 1) list.push(i);
+            return list;
+        });
+        const lineups = assignPositions(onLists, posMasks, segs.length, rng);
 
-        // ---- Stage 3a: spread each player's shifts through the game ----
-        improveSpread(on, counts, posMasks, S, n, rng);
-
-        // ---- Stage 3b: positions ----
-        const lineups = assignPositions(on, posMasks, S, rng);
-
-        // Explain the most common reason a player is far off target.
-        const warnings = [];
+        const result = { ok: true, segments: [], counts: {}, targets: {}, warnings: [] };
+        segs.forEach(function (s, k) {
+            result.segments.push({ start: s.start, end: s.end,
+                slots: lineups[k].map(function (i) { return players[i].id; }) });
+        });
+        players.forEach(function (p, i) {
+            let c = 0;
+            for (let t = 0; t < T; t++) c += (best.mask[t] >>> i) & 1;
+            result.counts[p.id] = c;
+            result.targets[p.id] = ctx.targets[i];
+        });
         for (let pos = 0; pos < NPOS; pos++) {
             const who = idx.filter(function (i) { return posMasks[i] & (1 << pos); });
             if (who.length === 1) {
                 const name = players[who[0]].name || "One player";
-                warnings.push("Only " + name + " plays " + (pos + 1) + ", so " + name +
-                    " plays every shift.");
+                result.warnings.push("Only " + name + " plays " + (pos + 1) + ", so " + name +
+                    " plays the whole game.");
             }
         }
-
-        const result = { ok: true, lineups: [], counts: {}, targets: {}, shares: {}, warnings: warnings };
-        lineups.forEach(function (lineup) {
-            result.lineups.push(lineup.map(function (i) { return players[i].id; }));
-        });
-        players.forEach(function (p, i) {
-            result.counts[p.id] = counts[i];
-            result.targets[p.id] = targets[i];
-            result.shares[p.id] = shares[i];
-        });
+        result.issues = check(players, opts, result.segments);
         return result;
+    }
+
+    // check(players, rules, segments) — lists every rule a plan breaks, for
+    // plans changed by hand. rules: { ticks, periodTicks, maxSubs, minStint, closeTicks }.
+    // Each issue: { type, tick, ids, ... }
+    //   too-many-subs { tick, count }      short-stint { tick (start), ids: [id], length }
+    //   starters / closers { ids: the players who shouldn't be there }
+    //   position { tick, ids: [id], position }
+    function check(players, rules, segments) {
+        const byId = {};
+        players.forEach(function (p) { byId[p.id] = p; });
+        const issues = [];
+        const T = rules.ticks;
+        const L = T - rules.closeTicks;
+
+        segments.forEach(function (seg) {
+            seg.slots.forEach(function (id, pos) {
+                const p = byId[id];
+                if (!p || p.positions.indexOf(pos + 1) === -1) {
+                    issues.push({ type: "position", tick: seg.start, ids: [id], position: pos + 1 });
+                }
+            });
+        });
+
+        const first = segments[0];
+        const wrongStart = first.slots.filter(function (id) { return !(byId[id] && byId[id].starter); });
+        if (wrongStart.length) issues.push({ type: "starters", tick: 0, ids: wrongStart });
+        const wrongClose = [];
+        segments.forEach(function (seg) {
+            if (seg.end <= L) return;
+            seg.slots.forEach(function (id) {
+                if (!(byId[id] && byId[id].closer) && wrongClose.indexOf(id) === -1) wrongClose.push(id);
+            });
+        });
+        if (wrongClose.length) issues.push({ type: "closers", tick: L, ids: wrongClose });
+
+        for (let k = 1; k < segments.length; k++) {
+            const t = segments[k].start;
+            if (t % rules.periodTicks === 0) continue;
+            const prev = segments[k - 1].slots;
+            const ins = segments[k].slots.filter(function (id) { return prev.indexOf(id) === -1; });
+            if (ins.length > rules.maxSubs) issues.push({ type: "too-many-subs", tick: t, count: ins.length });
+        }
+
+        // Stints: a run of consecutive segments containing the player.
+        Object.keys(byId).forEach(function (id) {
+            let start = -1;
+            for (let k = 0; k <= segments.length; k++) {
+                const isOn = k < segments.length && segments[k].slots.indexOf(id) !== -1;
+                if (isOn && start === -1) start = segments[k].start;
+                if (!isOn && start !== -1) {
+                    const end = segments[k - 1].end;
+                    if (end - start < rules.minStint) {
+                        issues.push({ type: "short-stint", tick: start, ids: [id], length: end - start });
+                    }
+                    start = -1;
+                }
+            }
+        });
+        issues.sort(function (a, b) { return a.tick - b.tick; });
+        return issues;
     }
 
     // Is there any group of five among `idx` that covers 1–5?
@@ -369,82 +485,8 @@
         return list.map(function (p) { return p.name || "A player"; }).join(", ");
     }
 
-    // Spread penalty for one player's 0/1 row: how far their running total
-    // strays from an even pace. Playing every other shift scores better than
-    // playing a block and then sitting a block.
-    function spreadCost(row, count, S) {
-        let cum = 0, cost = 0;
-        for (let s = 0; s < S; s++) {
-            cum += row[s];
-            const d = cum - count * (s + 1) / S;
-            cost += d * d;
-        }
-        // Long stretches on the bench feel worse than the pace number says.
-        let run = 0;
-        for (let s = 0; s < S; s++) {
-            if (row[s]) { run = 0; } else { run++; if (run >= 3) cost += 0.5 * (run - 2); }
-        }
-        return cost;
-    }
 
-    // Simulated annealing over moves that keep every count: in shift s
-    // player b replaces a, and in another shift t player a replaces b.
-    // Shift 1 and the last shift are fixed (starters / closers).
-    function improveSpread(on, counts, posMasks, S, n, rng) {
-        const free = [];
-        for (let s = 1; s < S - 1; s++) free.push(s);
-        if (free.length < 2) return;
-
-        const rows = [];
-        for (let i = 0; i < n; i++) rows.push(new Array(S).fill(0));
-        on.forEach(function (list, s) { list.forEach(function (i) { rows[i][s] = 1; }); });
-        const cost = rows.map(function (r, i) { return spreadCost(r, counts[i], S); });
-
-        const fillCache = new Map();
-        function ok(list) {
-            const key = list.slice().sort(function (a, b) { return a - b; }).join(",");
-            let v = fillCache.get(key);
-            if (v === undefined) { v = canFill(list, posMasks); fillCache.set(key, v); }
-            return v;
-        }
-
-        const ITER = 40000;
-        let temp = 2.0;
-        const cool = Math.pow(0.002 / temp, 1 / ITER);
-        for (let it = 0; it < ITER; it++, temp *= cool) {
-            const s = free[Math.floor(rng() * free.length)];
-            const a = on[s][Math.floor(rng() * NPOS)];
-            const b = Math.floor(rng() * n);
-            if (rows[b][s]) continue;
-            // Shifts where b plays and a doesn't.
-            const cands = [];
-            for (let k = 0; k < free.length; k++) {
-                const t = free[k];
-                if (t !== s && rows[b][t] && !rows[a][t]) cands.push(t);
-            }
-            if (!cands.length) continue;
-            const t = cands[Math.floor(rng() * cands.length)];
-
-            const newS = on[s].map(function (x) { return x === a ? b : x; });
-            const newT = on[t].map(function (x) { return x === b ? a : x; });
-            if (!ok(newS) || !ok(newT)) continue;
-
-            rows[a][s] = 0; rows[a][t] = 1;
-            rows[b][t] = 0; rows[b][s] = 1;
-            const ca = spreadCost(rows[a], counts[a], S);
-            const cb = spreadCost(rows[b], counts[b], S);
-            const delta = ca + cb - cost[a] - cost[b];
-            if (delta <= 0 || rng() < Math.exp(-delta / temp)) {
-                cost[a] = ca; cost[b] = cb;
-                on[s] = newS; on[t] = newT;
-            } else {
-                rows[a][s] = 1; rows[a][t] = 0;
-                rows[b][t] = 1; rows[b][s] = 0;
-            }
-        }
-    }
-
-    // For each shift choose who plays which position, keeping players at the
+    // For each segment choose who plays which position, keeping players at the
     // same position from one shift to the next where possible (DP over shifts).
     function assignPositions(on, posMasks, S, rng) {
         const options = on.map(function (list) { return allFills(list, posMasks); });
@@ -525,7 +567,7 @@
         return c;
     }
 
-    const api = { plan: plan, scaleShares: scaleShares, NPOS: NPOS };
+    const api = { plan: plan, check: check, scaleShares: scaleShares, NPOS: NPOS };
     if (typeof module !== "undefined" && module.exports) module.exports = api;
     else root.RotationEngine = api;
 })(typeof window !== "undefined" ? window : this);

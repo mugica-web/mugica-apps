@@ -36,30 +36,31 @@
             <summary>How it works</summary>
             <ol>
                 <li>
-                    <strong>Set the clock.</strong> The game is cut into equal shifts: each
-                    period is split at the sub points. 4 quarters of 8 minutes with 1 sub per
-                    quarter makes 8 shifts of 4:00. Lineups change only between shifts.
+                    <strong>Set the game and the sub rules.</strong> The planner picks when to
+                    sub, on the minute (or half minute). You set how many players can come in
+                    at one sub, how long a player stays in once they're in, and how long the
+                    closing five play at the end. Any number can change at a period break.
                 </li>
                 <li>
                     <strong>Fill in the roster.</strong> For each player: the share of the game
-                    they should play, the positions they can play (1–5), and whether they start
-                    and close. Mark who's not at the game as Out.
+                    they should play, every position they can play (1–5), and whether they
+                    start and close. Mark who's not at the game as Out.
                 </li>
                 <li>
                     <strong>Percents are scaled to 500%</strong>, because five players are on
                     the floor. Nobody goes over 100%.
                 </li>
                 <li>
-                    <strong>Make rotation.</strong> Every shift has exactly one player at each
-                    position. The starters play the first shift and the closers the last.
-                    Minutes come in whole shifts, so they land close to the targets, not on
-                    them. A planned time in amber is off by a full shift or more, because of
-                    positions, starters or closers.
+                    <strong>Make rotation.</strong> At every moment there's exactly one player
+                    at each position. The plan balances three things: minutes close to target,
+                    playing time spread through the game (no long sits), and not too many sub
+                    stoppages. Sub times are targets: sub at the first dead ball after.
                 </li>
                 <li>
                     <strong>Adjust.</strong> Tap a name in the lineup chart to put in someone
-                    from the bench or swap positions. <em>Try another arrangement</em> shuffles
-                    who plays when, keeping everyone's minutes.
+                    from the bench or swap positions. If a change breaks one of your rules, the
+                    page says which. <em>Try another arrangement</em> makes a different plan
+                    from the same inputs.
                 </li>
             </ol>
         </details>
@@ -80,15 +81,28 @@
             <label class="field">Minutes each
                 <input id="set-minutes" class="input input-num" type="number" min="1" max="30" step="0.5" inputmode="decimal">
             </label>
-            <label class="field">Subs per period
-                <select id="set-subs" class="input input-num">
-                    <option value="0">0</option>
+            <label class="field">Sub times on the
+                <select id="set-grid" class="input">
+                    <option value="1">minute</option>
+                    <option value="0.5">half minute</option>
+                </select>
+            </label>
+        </div>
+        <div class="field-row" style="margin-top: 12px;">
+            <label class="field">Max in per sub
+                <select id="set-maxsubs" class="input input-num">
                     <option value="1">1</option>
                     <option value="2">2</option>
                     <option value="3">3</option>
                     <option value="4">4</option>
                     <option value="5">5</option>
                 </select>
+            </label>
+            <label class="field">Min stint (min)
+                <input id="set-minstint" class="input input-num" type="number" min="0.5" max="20" step="0.5" inputmode="decimal">
+            </label>
+            <label class="field">Closers play last (min)
+                <input id="set-close" class="input input-num" type="number" min="0.5" max="30" step="0.5" inputmode="decimal">
             </label>
         </div>
         <p id="clock-note" class="note"></p>
@@ -102,7 +116,7 @@
         <div id="roster-summary" class="roster-summary"></div>
 
         <div class="actions">
-            <button class="btn btn-primary" onclick="makeRotation()">Make rotation</button>
+            <button class="btn btn-primary" id="make-btn" onclick="makeRotation()">Make rotation</button>
         </div>
         <div id="make-errors"></div>
     </div>
@@ -115,10 +129,10 @@
             <div class="plan-meta" id="plan-meta"></div>
         </div>
         <p id="plan-stale" class="stale" style="display: none;">
-            The roster or clock changed since this rotation was made. Tap Make rotation to update it.
+            The roster or game settings changed since this rotation was made. Tap Make rotation to update it.
         </p>
         <div class="actions no-print">
-            <button class="btn btn-secondary" onclick="shufflePlan()">Try another arrangement</button>
+            <button class="btn btn-secondary" id="shuffle-btn" onclick="shufflePlan()">Try another arrangement</button>
             <button class="btn btn-secondary" onclick="window.print()">Print</button>
             <button class="btn btn-primary" id="save-game-btn" onclick="saveGame()">Save game</button>
             <span id="plan-unsaved" class="unsaved"></span>
@@ -126,7 +140,7 @@
         <div id="plan-warnings"></div>
 
         <div class="print-break">
-            <div class="section-label">Lineups by shift</div>
+            <div class="section-label">Lineups</div>
             <div class="table-wrap"><table class="grid by-shift" id="by-shift"></table></div>
         </div>
 
@@ -150,7 +164,10 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
     const NPOS = RotationEngine.NPOS;
-    const DEFAULT_SETTINGS = { periods: 4, periodMinutes: 8, subsPerPeriod: 1 };
+    const DEFAULT_SETTINGS = {
+        periods: 4, periodMinutes: 8, grid: 1,     // grid = minutes between possible sub times
+        maxSubs: 2, minStint: 3, closeMinutes: 4    // minStint / closeMinutes in minutes
+    };
 
 
     // ---- AUTHENTICATION ----
@@ -191,11 +208,12 @@
     //
     // roster   = [{ id, name, pct, positions: [1..5], starter, closer, present }]
     //            saved to Firestore users/{uid}/hoopsRotation/roster with the settings
-    // settings = { periods, periodMinutes, subsPerPeriod }
+    // settings = DEFAULT_SETTINGS shape
     // plan     = the rotation on screen (made from the roster or opened from a saved game):
     //   { label, date, settings, players: [roster entries at the game, without `present`],
-    //     lineups: [[id at 1, ..., id at 5] per shift], targets: { id: target shifts },
-    //     warnings, seed, gameId (null until saved), unsaved, fromRoster, rosterVersion }
+    //     segments: [{ start, end, slots: [id at 1..5] }] (start/end in ticks of settings.grid min),
+    //     targets: { id: target ticks }, warnings, seed,
+    //     gameId (null until saved), unsaved, fromRoster, rosterVersion }
     let roster = [];
     let settings = Object.assign({}, DEFAULT_SETTINGS);
     let plan = null;
@@ -223,6 +241,8 @@
             Object.keys(props).forEach(function(k) {
                 if (k === "attrs") {
                     Object.keys(props.attrs).forEach(function(a) { node.setAttribute(a, props.attrs[a]); });
+                } else if (k === "style") {
+                    node.setAttribute("style", props.style);
                 } else {
                     node[k] = props[k];
                 }
@@ -235,14 +255,38 @@
         return node;
     }
 
-    // 9.6 → "9:36"
+    // 9.5 → "9:30"
     function fmtClock(minutes) {
         const secs = Math.round(minutes * 60);
         return Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
     }
 
-    function shiftCount(st) { return st.periods * (st.subsPerPeriod + 1); }
-    function shiftLength(st) { return st.periodMinutes / (st.subsPerPeriod + 1); }
+    // The engine works in ticks of st.grid minutes.
+    function rules(st) {
+        const periodTicks = Math.round(st.periodMinutes / st.grid);
+        const ticks = st.periods * periodTicks;
+        return {
+            ticks: ticks,
+            tickMinutes: st.grid,
+            periodTicks: periodTicks,
+            maxSubs: st.maxSubs,
+            minStint: Math.max(1, Math.round(st.minStint / st.grid)),
+            closeTicks: Math.max(1, Math.round(st.closeMinutes / st.grid))
+        };
+    }
+
+    // Problems with the settings themselves (before looking at players).
+    function settingsProblems(st) {
+        const out = [];
+        const total = st.periods * st.periodMinutes;
+        if (Math.abs(st.periodMinutes / st.grid - Math.round(st.periodMinutes / st.grid)) > 1e-9) {
+            out.push("Period length has to be a whole number of " + (st.grid === 1 ? "minutes" : "half minutes") +
+                " when subs are on the " + (st.grid === 1 ? "minute" : "half minute") + ".");
+        }
+        if (st.closeMinutes >= total) out.push("The closing stretch has to be shorter than the game.");
+        if (st.minStint > total) out.push("The minimum stint is longer than the game.");
+        return out;
+    }
 
     function periodPrefix(st) {
         if (st.periods === 4) return "Q";
@@ -255,22 +299,30 @@
         return "period";
     }
 
-    // Label for a shift, using the game clock (counting down): "Q2 4:00"
-    function shiftLabel(s, st) {
-        const per = st.subsPerPeriod + 1;
-        const period = Math.floor(s / per);
-        const k = s % per;
-        return periodPrefix(st) + (period + 1) + " " + fmtClock(st.periodMinutes - k * shiftLength(st));
+    // Game clock (counting down) at the start of tick t: "Q2 5:00"
+    function tickLabel(t, st) {
+        const r = rules(st);
+        if (t >= r.ticks) return "End";
+        const period = Math.floor(t / r.periodTicks);
+        const k = t % r.periodTicks;
+        return periodPrefix(st) + (period + 1) + " " + fmtClock(st.periodMinutes - k * st.grid);
     }
 
     function readSettingsInputs() {
-        const periods = Math.round(Number(document.getElementById("set-periods").value));
-        const minutes = Number(document.getElementById("set-minutes").value);
-        const subs = Number(document.getElementById("set-subs").value);
+        function num(id) { return Number(document.getElementById(id).value); }
+        const periods = Math.round(num("set-periods"));
+        const minutes = num("set-minutes");
+        const grid = num("set-grid") === 0.5 ? 0.5 : 1;
+        const maxSubs = Math.round(num("set-maxsubs"));
+        const minStint = num("set-minstint");
+        const close = num("set-close");
         return {
             periods: periods >= 1 && periods <= 8 ? periods : settings.periods,
             periodMinutes: minutes > 0 && minutes <= 30 ? minutes : settings.periodMinutes,
-            subsPerPeriod: subs >= 0 && subs <= 5 ? subs : settings.subsPerPeriod
+            grid: grid,
+            maxSubs: maxSubs >= 1 && maxSubs <= 5 ? maxSubs : settings.maxSubs,
+            minStint: minStint > 0 ? minStint : settings.minStint,
+            closeMinutes: close > 0 ? close : settings.closeMinutes
         };
     }
 
@@ -283,7 +335,7 @@
             if (doc.exists) {
                 const data = doc.data();
                 roster = (data.players || []).map(normalisePlayer);
-                settings = Object.assign({}, DEFAULT_SETTINGS, data.settings || {});
+                settings = cleanSettings(data.settings);
             }
             showSetup();
         }).catch(function(error) {
@@ -291,6 +343,16 @@
             showSetup();
             setSaveStatus("Couldn't load the saved roster: " + error.message, true);
         });
+    }
+
+    // Keep only known settings, filling in defaults.
+    function cleanSettings(raw) {
+        const out = {};
+        Object.keys(DEFAULT_SETTINGS).forEach(function(k) {
+            const v = raw ? Number(raw[k]) : NaN;
+            out[k] = isFinite(v) && v > 0 ? v : DEFAULT_SETTINGS[k];
+        });
+        return out;
     }
 
     function normalisePlayer(p) {
@@ -308,7 +370,10 @@
     function showSetup() {
         document.getElementById("set-periods").value = settings.periods;
         document.getElementById("set-minutes").value = settings.periodMinutes;
-        document.getElementById("set-subs").value = settings.subsPerPeriod;
+        document.getElementById("set-grid").value = String(settings.grid);
+        document.getElementById("set-maxsubs").value = String(settings.maxSubs);
+        document.getElementById("set-minstint").value = settings.minStint;
+        document.getElementById("set-close").value = settings.closeMinutes;
         document.getElementById("setup-section").style.display = "block";
         document.getElementById("saved-section").style.display = "block";
         if (roster.length === 0) {
@@ -355,7 +420,7 @@
 
     // ---- GAME SETTINGS ----
 
-    ["set-periods", "set-minutes", "set-subs"].forEach(function(id) {
+    ["set-periods", "set-minutes", "set-grid", "set-maxsubs", "set-minstint", "set-close"].forEach(function(id) {
         document.getElementById(id).addEventListener("input", function() {
             settings = readSettingsInputs();
             renderClockNote();
@@ -364,19 +429,21 @@
     });
 
     function renderClockNote() {
-        const S = shiftCount(settings);
-        const len = shiftLength(settings);
-        let text = S + " shift" + (S === 1 ? "" : "s") + " of " + fmtClock(len) + ", " +
-            fmtClock(settings.periods * settings.periodMinutes) + " in all. ";
-        if (settings.subsPerPeriod === 0) {
-            text += "Lineups change only between " + periodWord(settings) + "s.";
-        } else {
-            const marks = [];
-            for (let k = 1; k <= settings.subsPerPeriod; k++) marks.push(fmtClock(settings.periodMinutes - k * len));
-            text += "Subs at " + marks.join(", ") + " in each " + periodWord(settings) + ".";
+        const st = settings;
+        const problems = settingsProblems(st);
+        const node = document.getElementById("clock-note");
+        if (problems.length) {
+            node.textContent = problems.join(" ");
+            node.className = "note bad-note";
+            return;
         }
-        text += " Each shift is " + Math.round(100 / S) + "% of the game, so that's the step size for minutes.";
-        document.getElementById("clock-note").textContent = text;
+        node.className = "note";
+        node.textContent =
+            fmtClock(st.periods * st.periodMinutes) + " game. Subs on the " +
+            (st.grid === 1 ? "minute" : "half minute") + ", at most " + st.maxSubs +
+            " player" + (st.maxSubs === 1 ? "" : "s") + " in per sub (any number between " +
+            periodWord(st) + "s). Once in, a player stays at least " + fmtClock(st.minStint) +
+            ". The closers play the last " + fmtClock(st.closeMinutes) + ".";
     }
 
     ["game-label", "game-date"].forEach(function(id) {
@@ -437,7 +504,7 @@
 
             const chips = [];
             for (let pos = 1; pos <= NPOS; pos++) {
-                chips.push(chip(String(pos), p.positions.indexOf(pos) !== -1, "Plays position " + pos, function() {
+                chips.push(chip(String(pos), p.positions.indexOf(pos) !== -1, "Can play position " + pos, function() {
                     const at = p.positions.indexOf(pos);
                     if (at === -1) p.positions.push(pos); else p.positions.splice(at, 1);
                     p.positions.sort();
@@ -504,10 +571,24 @@
         ]));
     }
 
+    // Runs the engine after letting the page repaint, so the button can say "Planning…".
+    function runEngine(button, players, st, seed, done) {
+        const label = button.textContent;
+        button.disabled = true;
+        button.textContent = "Planning…";
+        setTimeout(function() {
+            const r = rules(st);
+            const result = RotationEngine.plan(Object.assign({ players: players, seed: seed }, r));
+            button.disabled = false;
+            button.textContent = label;
+            done(result);
+        }, 30);
+    }
+
     function makeRotation() {
         settings = readSettingsInputs();
         const here = roster.filter(function(p) { return p.present; });
-        const problems = [];
+        const problems = settingsProblems(settings);
         const unnamed = here.filter(function(p) { return !p.name; }).length;
         if (unnamed) problems.push(unnamed + " player" + (unnamed === 1 ? " has" : "s have") +
             " no name. Name them or remove them.");
@@ -526,52 +607,56 @@
             return { id: p.id, name: p.name, pct: p.pct, positions: p.positions.slice(),
                      starter: p.starter, closer: p.closer };
         });
+        const st = Object.assign({}, settings);
         const seed = Math.floor(Math.random() * 1e9);
-        const result = RotationEngine.plan({ players: players, shifts: shiftCount(settings), seed: seed });
-        if (!result.ok) {
-            showErrors("make-errors", "Can't make a rotation yet:", result.errors);
-            return;
-        }
-        showErrors("make-errors", null, []);
+        const version = rosterVersion;
+        runEngine(document.getElementById("make-btn"), players, st, seed, function(result) {
+            if (!result.ok) {
+                showErrors("make-errors", "Can't make a rotation yet:", result.errors);
+                return;
+            }
+            showErrors("make-errors", null, []);
 
-        const total = players.reduce(function(a, p) { return a + p.pct; }, 0);
-        const warnings = result.warnings.slice();
-        if (total !== 500) {
-            warnings.unshift("The percents added up to " + total + "%, so they were scaled to 500%. " +
-                "The Target column shows each player's scaled share.");
-        }
-        plan = {
-            label: document.getElementById("game-label").value.trim(),
-            date: document.getElementById("game-date").value,
-            settings: Object.assign({}, settings),
-            players: players,
-            lineups: result.lineups,
-            targets: result.targets,
-            warnings: warnings,
-            seed: seed,
-            gameId: null,
-            unsaved: true,
-            fromRoster: true,
-            rosterVersion: rosterVersion
-        };
-        renderPlan();
-        document.getElementById("plan-section").scrollIntoView({ behavior: "smooth" });
+            const total = players.reduce(function(a, p) { return a + p.pct; }, 0);
+            const warnings = result.warnings.slice();
+            if (total !== 500) {
+                warnings.unshift("The percents added up to " + total + "%, so they were scaled to 500%. " +
+                    "The Target column shows each player's scaled share.");
+            }
+            plan = {
+                label: document.getElementById("game-label").value.trim(),
+                date: document.getElementById("game-date").value,
+                settings: st,
+                players: players,
+                segments: result.segments,
+                targets: result.targets,
+                warnings: warnings,
+                seed: seed,
+                gameId: null,
+                unsaved: true,
+                fromRoster: true,
+                rosterVersion: version
+            };
+            renderPlan();
+            document.getElementById("plan-section").scrollIntoView({ behavior: "smooth" });
+        });
     }
 
-    // Same players and targets, different arrangement.
+    // Same players and settings, a different plan.
     function shufflePlan() {
         if (!plan) return;
         const seed = Math.floor(Math.random() * 1e9);
-        const result = RotationEngine.plan({ players: plan.players, shifts: shiftCount(plan.settings), seed: seed });
-        if (!result.ok) {
-            alert(result.errors.join("\n"));
-            return;
-        }
-        plan.lineups = result.lineups;
-        plan.targets = result.targets;
-        plan.seed = seed;
-        plan.unsaved = true;
-        renderPlan();
+        runEngine(document.getElementById("shuffle-btn"), plan.players, plan.settings, seed, function(result) {
+            if (!result.ok) {
+                alert(result.errors.join("\n"));
+                return;
+            }
+            plan.segments = result.segments;
+            plan.targets = result.targets;
+            plan.seed = seed;
+            plan.unsaved = true;
+            renderPlan();
+        });
     }
 
     function updateStale() {
@@ -585,17 +670,65 @@
     function playerById(id) {
         return plan.players.find(function(p) { return p.id === id; });
     }
+    function nameOf(id) {
+        const p = playerById(id);
+        return p ? p.name : "?";
+    }
 
-    function plannedShifts(id) {
-        return plan.lineups.reduce(function(n, l) { return n + (l.indexOf(id) !== -1 ? 1 : 0); }, 0);
+    function plannedTicks(id) {
+        return plan.segments.reduce(function(n, seg) {
+            return n + (seg.slots.indexOf(id) !== -1 ? seg.end - seg.start : 0);
+        }, 0);
+    }
+
+    // Merge neighbouring segments that ended up with the same lineup.
+    function mergeSegments() {
+        const out = [];
+        plan.segments.forEach(function(seg) {
+            const last = out[out.length - 1];
+            if (last && last.slots.join() === seg.slots.join()) last.end = seg.end;
+            else out.push({ start: seg.start, end: seg.end, slots: seg.slots.slice() });
+        });
+        plan.segments = out;
+    }
+
+    // Rule checks for the plan as it stands (after hand changes too).
+    function issueTexts() {
+        const st = plan.settings;
+        const r = rules(st);
+        return RotationEngine.check(plan.players, r, plan.segments).map(function(x) {
+            const at = tickLabel(x.tick, st);
+            const names = (x.ids || []).map(nameOf).join(", ");
+            if (x.type === "too-many-subs") return at + ": " + x.count + " players come in (limit " + st.maxSubs + ").";
+            if (x.type === "short-stint") return names + " is in for only " + fmtClock(x.length * st.grid) +
+                " from " + at + " (minimum " + fmtClock(st.minStint) + ").";
+            if (x.type === "starters") return "The starting lineup has non-starters: " + names + ".";
+            if (x.type === "closers") return "The closing stretch has non-closers: " + names + ".";
+            if (x.type === "position") return names + " is at " + x.position + " from " + at +
+                ", which isn't one of their positions.";
+            return at + ": " + x.type;
+        });
     }
 
     function renderPlan() {
         document.getElementById("plan-section").style.display = "block";
         renderPlanHead();
         updateStale();
-        showErrors("plan-warnings", null, plan.warnings, "warnings");
-        renderByShift();
+        const issues = issueTexts();
+        const box = document.getElementById("plan-warnings");
+        box.innerHTML = "";
+        if (issues.length) {
+            box.appendChild(el("div", { className: "errors" }, [
+                el("strong", null, ["This plan breaks your rules:"]),
+                el("ul", null, issues.map(function(t) { return el("li", null, [t]); }))
+            ]));
+        }
+        if (plan.warnings && plan.warnings.length) {
+            box.appendChild(el("div", { className: "warnings" }, [
+                el("ul", null, plan.warnings.map(function(t) { return el("li", null, [t]); }))
+            ]));
+        }
+        renderLineups();
         renderByPlayer();
         renderSavedGames();
     }
@@ -607,87 +740,123 @@
             const d = new Date(plan.date + "T12:00:00");
             dateText = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
         }
+        const subs = plan.segments.filter(function(seg) {
+            return seg.start > 0 && seg.start % rules(st).periodTicks !== 0;
+        }).length;
         document.getElementById("plan-title").textContent = plan.label || "Rotation";
         document.getElementById("plan-meta").textContent = [
             dateText,
-            st.periods + " × " + fmtClock(st.periodMinutes) + ", " + shiftCount(st) + " shifts of " + fmtClock(shiftLength(st))
+            st.periods + " × " + fmtClock(st.periodMinutes),
+            subs + " sub" + (subs === 1 ? "" : "s") + " during play"
         ].filter(Boolean).join(" · ");
         document.getElementById("plan-unsaved").textContent = plan.unsaved ? "Not saved" : "Saved";
         document.getElementById("save-game-btn").textContent = plan.gameId ? "Save changes" : "Save game";
     }
 
-    function renderByShift() {
+    // One row per lineup, each preceded by who comes in and who goes out.
+    function renderLineups() {
         const st = plan.settings;
-        const per = st.subsPerPeriod + 1;
+        const r = rules(st);
         const table = document.getElementById("by-shift");
         table.innerHTML = "";
-        const head = [el("th", null, ["Shift"])];
+        const head = [el("th", null, ["From"])];
         for (let pos = 1; pos <= NPOS; pos++) head.push(el("th", null, [String(pos)]));
         table.appendChild(el("thead", null, [el("tr", null, head)]));
 
         const body = el("tbody");
-        plan.lineups.forEach(function(lineup, s) {
-            const prev = s > 0 ? plan.lineups[s - 1] : null;
-            const cells = [el("th", { className: "shift-label" }, [shiftLabel(s, st)])];
-            lineup.forEach(function(id, pos) {
-                const p = playerById(id);
+        plan.segments.forEach(function(seg, k) {
+            const prev = k > 0 ? plan.segments[k - 1].slots : null;
+            const atBreak = seg.start % r.periodTicks === 0;
+            if (prev) {
+                const ins = seg.slots.filter(function(id) { return prev.indexOf(id) === -1; });
+                const outs = prev.filter(function(id) { return seg.slots.indexOf(id) === -1; });
+                const text = ins.length
+                    ? [el("span", null, ["In: " + ins.map(nameOf).join(", ")]),
+                       el("span", null, ["Out: " + outs.map(nameOf).join(", ")])]
+                    : [el("span", null, ["Positions change"])];
+                body.appendChild(el("tr", { className: atBreak ? "period-start" : "" }, [
+                    el("td", { className: "changes", colSpan: NPOS + 1 }, text)
+                ]));
+            }
+            const cells = [el("th", { className: "shift-label" }, [
+                tickLabel(seg.start, st),
+                el("div", { className: "seg-len" }, [fmtClock((seg.end - seg.start) * st.grid)])
+            ])];
+            seg.slots.forEach(function(id, pos) {
                 const isNew = prev && prev.indexOf(id) === -1;
                 cells.push(el("td", null, [el("button", {
                     className: "slot" + (isNew ? " new" : ""), type: "button",
                     title: "Change who plays " + (pos + 1) + " here",
-                    onclick: function() { openSwap(s, pos); }
-                }, [p ? p.name : "?"])]));
+                    onclick: function() { openSwap(k, pos); }
+                }, [nameOf(id)])]));
             });
-            body.appendChild(el("tr", { className: s > 0 && s % per === 0 ? "period-start" : "" }, cells));
-
-            if (prev) {
-                const ins = lineup.filter(function(id) { return prev.indexOf(id) === -1; });
-                const outs = prev.filter(function(id) { return lineup.indexOf(id) === -1; });
-                if (ins.length) {
-                    const names = function(ids) { return ids.map(function(id) { return playerById(id).name; }).join(", "); };
-                    body.appendChild(el("tr", null, [el("td", { className: "changes", colSpan: NPOS + 1 }, [
-                        el("span", null, ["In: " + names(ins)]),
-                        el("span", null, ["Out: " + names(outs)])
-                    ])]));
-                }
-            }
+            body.appendChild(el("tr", null, cells));
         });
         table.appendChild(body);
     }
 
+    // A timeline bar per player: dark blocks when on the floor, labelled with the position.
     function renderByPlayer() {
         const st = plan.settings;
-        const S = shiftCount(st);
-        const len = shiftLength(st);
-        const per = st.subsPerPeriod + 1;
+        const r = rules(st);
+        const T = r.ticks;
         const table = document.getElementById("by-player");
         table.innerHTML = "";
 
-        const head = [el("th", null, ["Player"])];
-        for (let s = 0; s < S; s++) {
-            head.push(el("th", { className: "shift-col", title: shiftLabel(s, st) },
-                [s % per === 0 ? periodPrefix(st) + (Math.floor(s / per) + 1) : ""]));
+        const scale = el("div", { className: "timeline timeline-scale" });
+        for (let p = 0; p < st.periods; p++) {
+            scale.appendChild(el("span", {
+                className: "tl-period-label",
+                style: "left:" + (100 * p / st.periods) + "%;width:" + (100 / st.periods) + "%"
+            }, [periodPrefix(st) + (p + 1)]));
         }
-        head.push(el("th", { className: "num" }, ["Plan"]));
-        head.push(el("th", { className: "num" }, ["Target"]));
-        table.appendChild(el("thead", null, [el("tr", null, head)]));
+        table.appendChild(el("thead", null, [el("tr", null, [
+            el("th", null, ["Player"]),
+            el("th", { className: "tl-cell" }, [scale]),
+            el("th", { className: "num" }, ["Plan"]),
+            el("th", { className: "num" }, ["Target"])
+        ])]));
 
         const body = el("tbody");
         plan.players.forEach(function(p) {
-            const row = [el("th", null, [p.name])];
-            plan.lineups.forEach(function(lineup) {
-                const at = lineup.indexOf(p.id);
-                row.push(at === -1 ? el("td", { className: "off" }, ["·"]) : el("td", { className: "on" }, [String(at + 1)]));
+            const bar = el("div", { className: "timeline" });
+            for (let q = 1; q < st.periods; q++) {
+                bar.appendChild(el("span", { className: "tl-break", style: "left:" + (100 * q / st.periods) + "%" }));
+            }
+            // Blocks: consecutive segments at the same position merge into one.
+            let block = null;
+            function flush() {
+                if (!block) return;
+                bar.appendChild(el("span", {
+                    className: "tl-on",
+                    title: tickLabel(block.start, st) + " – " + tickLabel(block.end, st) + " at " + block.pos,
+                    style: "left:" + (100 * block.start / T) + "%;width:" + (100 * (block.end - block.start) / T) + "%"
+                }, [String(block.pos)]));
+                block = null;
+            }
+            plan.segments.forEach(function(seg) {
+                const at = seg.slots.indexOf(p.id);
+                if (at === -1) { flush(); return; }
+                if (block && block.pos === at + 1 && block.end === seg.start) { block.end = seg.end; return; }
+                flush();
+                block = { start: seg.start, end: seg.end, pos: at + 1 };
             });
-            const planned = plannedShifts(p.id);
+            flush();
+
+            const planned = plannedTicks(p.id);
             const target = plan.targets[p.id] || 0;
-            const off = Math.abs(planned - target) >= 1 - 1e-6;
-            row.push(el("td", {
-                className: "num" + (off ? " off-target" : ""),
-                title: off ? "A full shift or more away from target" : ""
-            }, [fmtClock(planned * len) + " · " + Math.round(100 * planned / S) + "%"]));
-            row.push(el("td", { className: "num" }, [fmtClock(target * len) + " · " + Math.round(100 * target / S) + "%"]));
-            body.appendChild(el("tr", null, row));
+            const offBy = Math.abs(planned - target) * st.grid;
+            const off = offBy >= 2 - 1e-6;
+            body.appendChild(el("tr", null, [
+                el("th", null, [p.name]),
+                el("td", { className: "tl-cell" }, [bar]),
+                el("td", {
+                    className: "num" + (off ? " off-target" : ""),
+                    title: off ? "Two minutes or more away from target" : ""
+                }, [fmtClock(planned * st.grid), el("div", { className: "pct" }, [Math.round(100 * planned / T) + "%"])]),
+                el("td", { className: "num" }, [fmtClock(target * st.grid),
+                    el("div", { className: "pct" }, [Math.round(100 * target / T) + "%"])])
+            ]));
         });
         table.appendChild(body);
     }
@@ -695,19 +864,19 @@
 
     // ---- MANUAL SWAPS ----
 
-    function openSwap(s, pos) {
+    function openSwap(k, pos) {
         const st = plan.settings;
-        const len = shiftLength(st);
-        const S = shiftCount(st);
-        const lineup = plan.lineups[s];
+        const seg = plan.segments[k];
+        const len = seg.end - seg.start;
+        const lineup = seg.slots;
         const current = playerById(lineup[pos]);
         const dialog = document.getElementById("swap-dialog");
         dialog.innerHTML = "";
 
         function minutesText(id, delta) {
-            const now = plannedShifts(id);
-            return fmtClock(now * len) + " → " + fmtClock((now + delta) * len) +
-                " (target " + fmtClock((plan.targets[id] || 0) * len) + ")";
+            const now = plannedTicks(id);
+            return fmtClock(now * st.grid) + " → " + fmtClock((now + delta) * st.grid) +
+                " (target " + fmtClock((plan.targets[id] || 0) * st.grid) + ")";
         }
 
         const bench = plan.players.filter(function(p) {
@@ -722,15 +891,10 @@
             }
         });
 
-        let lineupNote = "";
-        if (s === 0) lineupNote = " This is the starting lineup.";
-        else if (s === S - 1) lineupNote = " This is the closing lineup.";
-
         const children = [
-            el("h3", null, [shiftLabel(s, st) + " · Position " + (pos + 1)]),
-            el("p", { className: "sub" }, ["Now: " + current.name + ", playing " +
-                fmtClock(plannedShifts(current.id) * len) + " (target " +
-                fmtClock((plan.targets[current.id] || 0) * len) + ")." + lineupNote]),
+            el("h3", null, [tickLabel(seg.start, st) + " – " + tickLabel(seg.end, st) + " · Position " + (pos + 1)]),
+            el("p", { className: "sub" }, ["Now: " + current.name + ". This changes only these " +
+                fmtClock(len * st.grid) + "."]),
             el("div", { className: "swap-group" }, ["Put in from the bench"])
         ];
         if (bench.length) {
@@ -741,9 +905,9 @@
                         lineup[pos] = p.id;
                         afterSwap();
                     }
-                }, [p.name, el("small", null, [minutesText(p.id, 1)])]));
+                }, [p.name, el("small", null, [minutesText(p.id, len)])]));
             });
-            children.push(el("p", { className: "swap-none" }, [current.name + ": " + minutesText(current.id, -1)]));
+            children.push(el("p", { className: "swap-none" }, [current.name + ": " + minutesText(current.id, -len)]));
         } else {
             children.push(el("p", { className: "swap-none" }, ["Nobody on the bench plays " + (pos + 1) + "."]));
         }
@@ -768,6 +932,7 @@
         children.forEach(function(c) { dialog.appendChild(c); });
 
         function afterSwap() {
+            mergeSegments();
             plan.unsaved = true;
             dialog.close();
             renderPlan();
@@ -804,8 +969,7 @@
             date: plan.date || "",
             settings: plan.settings,
             players: plan.players,
-            // Firestore can't store an array of arrays, so each lineup is wrapped.
-            lineups: plan.lineups.map(function(l) { return { slots: l }; }),
+            segments: plan.segments,
             targets: plan.targets,
             warnings: plan.warnings || [],
             seed: plan.seed || 0,
@@ -827,14 +991,14 @@
 
     function openGame(id) {
         const g = savedGames.find(function(x) { return x.id === id; });
-        if (!g) return;
+        if (!g || !g.segments) return;
         if (plan && plan.unsaved && !confirm("The rotation on screen isn't saved. Open this game anyway?")) return;
         plan = {
             label: g.label || "",
             date: g.date || "",
-            settings: Object.assign({}, DEFAULT_SETTINGS, g.settings || {}),
+            settings: cleanSettings(g.settings),
             players: g.players || [],
-            lineups: (g.lineups || []).map(function(l) { return l.slots.slice(); }),
+            segments: g.segments.map(function(s) { return { start: s.start, end: s.end, slots: s.slots.slice() }; }),
             targets: g.targets || {},
             warnings: g.warnings || [],
             seed: g.seed || 0,
