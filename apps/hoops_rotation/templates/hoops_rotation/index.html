@@ -52,9 +52,11 @@
                 </li>
                 <li>
                     <strong>Make rotation.</strong> At every moment there's exactly one player
-                    at each position. The plan balances three things: minutes close to target,
-                    playing time spread through the game (no long sits), and not too many sub
-                    stoppages. Sub times are targets: sub at the first dead ball after.
+                    at each position. Nobody sits half the game in a row, and nobody misses
+                    more than one whole quarter (players at 0% excepted). Within those rules
+                    the plan keeps minutes close to target and sits short, and leans toward
+                    more subs over long sits. Sub times are targets: sub at the first dead
+                    ball after.
                 </li>
                 <li>
                     <strong>Adjust.</strong> Tap a name in the lineup chart to put in someone
@@ -706,6 +708,11 @@
             if (x.type === "closers") return "The closing stretch has non-closers: " + names + ".";
             if (x.type === "position") return names + " is at " + x.position + " from " + at +
                 ", which isn't one of their positions.";
+            if (x.type === "long-sit") return names + " sits " + fmtClock(x.length * st.grid) + " in a row from " + at +
+                " (half the game or more).";
+            if (x.type === "missed-periods") return names + " doesn't play in " + x.periods.map(function(q) {
+                return periodPrefix(st) + (q + 1);
+            }).join(" or ") + " (more than one " + periodWord(st) + " without playing).";
             return at + ": " + x.type;
         });
     }

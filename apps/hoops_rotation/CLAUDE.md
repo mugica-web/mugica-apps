@@ -35,6 +35,9 @@ whenever they can (tests: always met so far):
 - **Max in per sub** (default 2): players coming in at one stoppage. Any
   number may change at a period break
 - **Min stint** (default 3:00): once in, a player stays at least this long
+- **No long sits** (fixed, not a setting): nobody sits half the game or more
+  in a row, and with 3+ periods nobody misses more than one whole period.
+  Players at 0% are exempt
 
 ## Engine (`RotationEngine.plan({ players, ticks, tickMinutes, periodTicks, maxSubs, minStint, closeTicks, seed })`)
 1. **Targets**: percents scaled by one common factor so the total is 500%,
@@ -55,7 +58,10 @@ in, short stint, wrong starters/closers, ineligible position). The page runs
 it after every hand edit and shows the results in red.
 
 Tradeoffs worth knowing: more weight on `event`/`gap` = fewer stoppages but
-longer sits and looser minutes; `bench` does the reverse. Low-minute players
+longer sits and looser minutes; `bench` does the reverse. The family prefers
+more subs over long sits, so `bench` is high (4) and `event` low (1): on the
+sample rosters that's ~11–14 stoppages per 32-min game, worst sit 10–11 min.
+Raising `bench` past 4 barely shortens sits but bunches subs together. Low-minute players
 can't appear in every quarter when min stint × quarters exceeds their minutes.
 
 ## Data Model

@@ -119,6 +119,9 @@
     // the final plan obeys them whenever it can):
     //   - at most `maxSubs` players come in at one sub, except at period breaks
     //   - every stint on the floor lasts at least `minStint` ticks
+    //   - nobody (with a percent above 0) sits half the game or more in a row
+    //   - nobody (with a percent above 0) misses more than one whole period
+    //     (with 3+ periods)
     // Goals (traded off against each other):
     //   - each player's minutes close to target (squared minutes off)
     //   - each player's time spread evenly through the game
@@ -128,8 +131,8 @@
 
     const WEIGHTS = {
         spread: 1,    // per player, average squared minutes off an even pace
-        event: 2,     // per sub stoppage (not counting period breaks)
-        bench: 1,     // squared minutes of each stretch on the bench, per game minute
+        event: 1,     // per sub stoppage (not counting period breaks)
+        bench: 4,     // squared minutes of each stretch on the bench, per game minute
         gap: 1.5      // per minute two stoppages are closer than the minimum stint
     };
 
@@ -166,12 +169,33 @@
                 bench += benchRun * benchRun;
                 benchRun = 0;
             }
-            soft += ctx.w.bench * bench * tickMin * tickMin / (T * tickMin);
+            // (Not for players at 0%: they sit unless they're needed.)
+            if (ctx.sitRules[i]) soft += ctx.w.bench * bench * tickMin * tickMin / (T * tickMin);
             let viol = 0, run = 0;
             for (let t = 0; t <= T; t++) {
                 if (t < T && on(i, t)) { run++; continue; }
                 if (run > 0 && run < ctx.minStint) viol += ctx.minStint - run;
                 run = 0;
+            }
+            if (ctx.sitRules[i]) {
+                // No sit of half the game or more...
+                const longest = ctx.maxSit;
+                let sit = 0;
+                for (let t = 0; t <= T; t++) {
+                    if (t < T && !on(i, t)) { sit++; continue; }
+                    if (sit > longest) viol += sit - longest;
+                    sit = 0;
+                }
+                // ...and at most one period without playing at all.
+                if (ctx.periods >= 3) {
+                    let missed = 0;
+                    for (let p = 0; p < ctx.periods; p++) {
+                        let any = 0;
+                        for (let t = p * ctx.periodTicks; t < (p + 1) * ctx.periodTicks && !any; t++) any = on(i, t);
+                        if (!any) missed++;
+                    }
+                    if (missed > 1) viol += (missed - 1) * ctx.minStint;
+                }
             }
             return { soft: soft, viol: viol };
         }
@@ -256,6 +280,11 @@
         return { mask: mask, soft: soft, viol: viol };
     }
 
+    // Longest allowed sit: less than half the game.
+    function maxSitTicks(T) {
+        return Math.ceil(T / 2) - 1;
+    }
+
     // ---- Main entry point ----
 
     // plan(opts)
@@ -322,6 +351,10 @@
             maxSubs: opts.maxSubs,
             minStint: opts.minStint,
             targets: shares.map(function (s) { return s * T; }),
+            periods: Math.round(T / opts.periodTicks),
+            maxSit: maxSitTicks(T),
+            // The sitting rules apply to everyone who's meant to play at all.
+            sitRules: players.map(function (p) { return (Number(p.pct) || 0) > 0; }),
             starterMask: starterIdx.reduce(function (m, i) { return m | (1 << i); }, 0),
             closerMask: closerIdx.reduce(function (m, i) { return m | (1 << i); }, 0),
             w: Object.assign({}, WEIGHTS, opts.weights || {}),
@@ -390,6 +423,8 @@
     //   too-many-subs { tick, count }      short-stint { tick (start), ids: [id], length }
     //   starters / closers { ids: the players who shouldn't be there }
     //   position { tick, ids: [id], position }
+    //   long-sit { tick (start), ids: [id], length }   (half the game or more)
+    //   missed-periods { tick, ids: [id], periods: [0-based period indexes] }
     function check(players, rules, segments) {
         const byId = {};
         players.forEach(function (p) { byId[p.id] = p; });
@@ -438,6 +473,36 @@
                         issues.push({ type: "short-stint", tick: start, ids: [id], length: end - start });
                     }
                     start = -1;
+                }
+            }
+        });
+        // Sitting rules (players with a percent above 0).
+        const maxSit = maxSitTicks(T);
+        const periods = Math.round(T / rules.periodTicks);
+        players.forEach(function (p) {
+            if (!((Number(p.pct) || 0) > 0)) return;
+            const onAt = new Array(T).fill(false);
+            segments.forEach(function (seg) {
+                if (seg.slots.indexOf(p.id) === -1) return;
+                for (let t = seg.start; t < seg.end; t++) onAt[t] = true;
+            });
+            let sitStart = -1;
+            for (let t = 0; t <= T; t++) {
+                if (t < T && !onAt[t]) { if (sitStart === -1) sitStart = t; continue; }
+                if (sitStart !== -1 && t - sitStart > maxSit) {
+                    issues.push({ type: "long-sit", tick: sitStart, ids: [p.id], length: t - sitStart });
+                }
+                sitStart = -1;
+            }
+            if (periods >= 3) {
+                const missed = [];
+                for (let q = 0; q < periods; q++) {
+                    let any = false;
+                    for (let t = q * rules.periodTicks; t < (q + 1) * rules.periodTicks && !any; t++) any = onAt[t];
+                    if (!any) missed.push(q);
+                }
+                if (missed.length > 1) {
+                    issues.push({ type: "missed-periods", tick: missed[0] * rules.periodTicks, ids: [p.id], periods: missed });
                 }
             }
         });
