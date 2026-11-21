@@ -12,6 +12,7 @@ Current apps:
 |---|---|---|---|
 | Cook Timer | `/cook-timer` | `apps/cook_timer/` | `apps/cook_timer/CLAUDE.md` |
 | Taboo Jr. | `/taboo-jr` | `apps/taboo_jr/` | `apps/taboo_jr/CLAUDE.md` |
+| Hoops Rotation | `/hoops-rotation` | `apps/hoops_rotation/` | `apps/hoops_rotation/CLAUDE.md` |
 
 ## Stack
 
@@ -54,6 +55,7 @@ templates/
 apps/
   cook_timer/               — Cook Timer (Blueprint, template, stylesheet)
   taboo_jr/                 — Taboo Jr. (Blueprint, generated game page, deck source)
+  hoops_rotation/           — Hoops Rotation (Blueprint, template, engine JS, stylesheet)
 ```
 
 ## Site Flow
@@ -83,4 +85,5 @@ Project ID: `cook-timer-69256`. The ID predates the site's name and Firebase
 IDs can't be changed; it is the whole site's project.
 
 Firestore collections: `allowedEmails`, `accessRequests`, and per-app data
-under `users/{userId}/...` (Cook Timer uses `users/{userId}/dishes/{dishId}`).
+under `users/{userId}/...` (Cook Timer uses `users/{userId}/dishes/{dishId}`; Hoops Rotation uses
+`users/{userId}/hoopsRotation/roster` and `users/{userId}/hoopsGames/{gameId}`).

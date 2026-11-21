@@ -1,0 +1,661 @@
+/* Hoops Rotation styles. Loaded after /static/site.css, which provides the
+   design tokens (colours, fonts), page layout, headings and .btn styles. */
+
+
+/* ========== HOW IT WORKS ========== */
+
+.how-it-works {
+    border-top: 1px solid var(--rule-strong);
+    padding: 12px 0 0;
+    margin-top: 22px;
+    font-size: 0.92em;
+    color: var(--muted);
+}
+
+.how-it-works summary {
+    cursor: pointer;
+    font-size: 0.8em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text);
+    list-style: none;
+}
+
+.how-it-works summary::-webkit-details-marker {
+    display: none;
+}
+
+.how-it-works summary::after {
+    content: " +";
+    color: var(--muted);
+}
+
+.how-it-works[open] summary::after {
+    content: " −";
+}
+
+.how-it-works ol {
+    margin: 12px 0 4px;
+    padding-left: 20px;
+}
+
+.how-it-works li {
+    margin-bottom: 8px;
+}
+
+.how-it-works strong {
+    color: var(--text);
+}
+
+
+/* ========== FORM BITS ========== */
+
+.field-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    align-items: flex-end;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.75em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+}
+
+.field-grow {
+    flex: 1 1 180px;
+}
+
+.input {
+    padding: 9px 10px;
+    min-height: 42px;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius);
+    background-color: var(--surface);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px; /* 16px stops iPhone zooming in on focus */
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    width: 100%;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--text);
+}
+
+.input-num {
+    width: 76px;
+}
+
+.note {
+    color: var(--muted);
+    font-size: 0.88em;
+    margin-top: 10px;
+}
+
+.note strong {
+    color: var(--text);
+}
+
+
+/* ========== ROSTER ========== */
+
+.roster {
+    display: flex;
+    flex-direction: column;
+}
+
+.player {
+    border-bottom: 1px solid var(--rule);
+    padding: 10px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.player.absent .player-name,
+.player.absent .player-pct,
+.player.absent .chips {
+    opacity: 0.4;
+}
+
+.player-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-name {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.pct-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--muted);
+    font-size: 0.9em;
+}
+
+.player-pct {
+    width: 68px;
+    text-align: right;
+}
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+}
+
+.chip {
+    flex-shrink: 0;
+    min-width: 38px;
+    height: 40px;
+    padding: 0 9px;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 0.9em;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+    background-color: var(--text);
+    border-color: var(--text);
+    color: var(--bg);
+}
+
+.chip-gap {
+    width: 6px;
+}
+
+.here-toggle {
+    min-width: 52px;
+}
+
+.here-toggle[aria-pressed="false"] {
+    border-style: dashed;
+}
+
+.btn-remove {
+    color: var(--faint);
+    font-size: 1.2em;
+    padding: 6px 8px;
+    min-height: 40px;
+}
+
+.roster-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    margin-top: 12px;
+    font-size: 0.88em;
+    color: var(--muted);
+}
+
+.roster-summary b {
+    color: var(--text);
+}
+
+.roster-summary .bad b {
+    color: var(--amber);
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.save-status {
+    font-size: 0.8em;
+    color: var(--faint);
+    align-self: center;
+}
+
+.save-status.error {
+    color: var(--red);
+}
+
+
+/* ========== MESSAGES ========== */
+
+.errors,
+.warnings {
+    margin-top: 14px;
+    padding: 10px 14px;
+    border-left: 3px solid var(--red);
+    background-color: var(--surface);
+    font-size: 0.9em;
+}
+
+.warnings {
+    border-left-color: var(--amber);
+}
+
+.errors li,
+.warnings li {
+    margin-left: 16px;
+    margin-bottom: 4px;
+}
+
+.stale {
+    margin-top: 10px;
+    color: var(--amber);
+    font-size: 0.88em;
+}
+
+
+/* ========== PLAN ========== */
+
+.plan-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 6px 16px;
+}
+
+.plan-title {
+    font-family: var(--serif);
+    font-size: 1.5em;
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.plan-meta {
+    color: var(--muted);
+    font-size: 0.88em;
+}
+
+.table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-top: 8px;
+}
+
+table.grid {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.88em;
+}
+
+table.grid th,
+table.grid td {
+    border-bottom: 1px solid var(--rule);
+    padding: 7px 6px;
+    text-align: left;
+    vertical-align: top;
+}
+
+table.grid thead th {
+    font-size: 0.78em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--rule-strong);
+}
+
+table.grid .num {
+    font-family: var(--numeric);
+    font-size: 1.15em;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.shift-label {
+    font-family: var(--numeric);
+    font-size: 1.1em;
+    white-space: nowrap;
+}
+
+.period-start td,
+.period-start th {
+    border-top: 1px solid var(--rule-strong);
+}
+
+/* A tappable lineup slot */
+.slot {
+    display: block;
+    width: 100%;
+    min-height: 36px;
+    padding: 4px 6px;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 1em;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    word-break: break-word;
+}
+
+.slot:hover {
+    border-color: var(--rule-strong);
+}
+
+.slot.new {
+    border-left: 3px solid var(--green);
+}
+
+.changes {
+    color: var(--faint);
+    font-size: 0.85em;
+    padding-top: 0;
+}
+
+.changes span {
+    margin-right: 10px;
+}
+
+.off-target {
+    color: var(--amber);
+}
+
+.seg-len {
+    font-family: var(--sans);
+    font-size: 0.75em;
+    color: var(--faint);
+}
+
+table.grid .num .pct {
+    font-size: 0.8em;
+    color: var(--muted);
+}
+
+.bad-note {
+    color: var(--amber);
+}
+
+/* ---- Timeline bars (minutes by player) ---- */
+
+.by-player .tl-cell {
+    width: 100%;
+    min-width: 140px;
+    vertical-align: middle;
+}
+
+.timeline {
+    position: relative;
+    height: 24px;
+    background-color: var(--surface);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.timeline-scale {
+    background: none;
+    height: 16px;
+}
+
+.tl-period-label {
+    position: absolute;
+    top: 0;
+    text-align: center;
+    font-family: var(--numeric);
+    letter-spacing: 0.04em;
+}
+
+.tl-break {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: var(--rule-strong);
+}
+
+.tl-on {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    background-color: var(--text);
+    color: var(--bg);
+    border-left: 1px solid var(--bg);
+    font-family: var(--numeric);
+    font-size: 0.95em;
+    line-height: 20px;
+    text-align: center;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.unsaved {
+    color: var(--amber);
+    font-size: 0.85em;
+}
+
+
+/* ========== SAVED GAMES ========== */
+
+.game-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--rule);
+    padding: 8px 0;
+}
+
+.game-row-name {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.game-row-name small {
+    color: var(--muted);
+    margin-left: 8px;
+}
+
+.game-row.current .game-row-name {
+    font-weight: 700;
+}
+
+
+/* ========== SWAP DIALOG ========== */
+
+dialog.swap {
+    margin: auto;
+    width: min(420px, calc(100vw - 32px));
+    max-height: 80vh;
+    background-color: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius);
+    padding: 18px;
+}
+
+dialog.swap::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.swap h3 {
+    font-family: var(--serif);
+    font-size: 1.2em;
+    margin-bottom: 4px;
+}
+
+.swap .sub {
+    color: var(--muted);
+    font-size: 0.85em;
+    margin-bottom: 12px;
+}
+
+.swap-group {
+    font-size: 0.72em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 12px 0 6px;
+}
+
+.swap-option {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 6px;
+    text-align: left;
+}
+
+.swap-option small {
+    color: var(--muted);
+    font-weight: 500;
+}
+
+.swap-none {
+    color: var(--faint);
+    font-size: 0.88em;
+}
+
+
+/* ========== PRINT ========== */
+
+.print-only {
+    display: none;
+}
+
+@media print {
+    @page {
+        margin: 12mm;
+    }
+
+    body {
+        background: #fff;
+        color: #000;
+        max-width: none;
+        padding: 0;
+        font-size: 11px;
+    }
+
+    .no-print,
+    .user-bar,
+    h1,
+    #setup-section,
+    #saved-section,
+    .stale,
+    .unsaved {
+        display: none !important;
+    }
+
+    .print-only {
+        display: block;
+    }
+
+    h2 {
+        color: #000;
+        border-top-color: #000;
+        margin: 14px 0 6px;
+    }
+
+    .plan-meta,
+    table.grid thead th,
+    .changes {
+        color: #333;
+    }
+
+    table.grid th,
+    table.grid td {
+        border-bottom-color: #999;
+        padding: 3px 4px;
+    }
+
+    .period-start td,
+    .period-start th {
+        border-top-color: #000;
+    }
+
+    .slot {
+        background: none;
+        border: none;
+        color: #000;
+        padding: 0;
+        min-height: 0;
+    }
+
+    .slot.new {
+        border: none;
+        text-decoration: underline;
+    }
+
+    .timeline {
+        background: #eee;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .timeline-scale {
+        background: none;
+    }
+
+    .tl-on {
+        background-color: #000;
+        color: #fff;
+        border-left-color: #fff;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .tl-break {
+        background-color: #888;
+    }
+
+    .seg-len,
+    table.grid .num .pct {
+        color: #333;
+    }
+
+    .off-target {
+        color: #000;
+        font-weight: 700;
+    }
+
+    .table-wrap {
+        overflow: visible;
+    }
+
+    .print-break {
+        break-inside: avoid;
+    }
+
+    .warnings {
+        background: none;
+        border-left-color: #000;
+    }
+}
+
+
+/* ========== PHONES ========== */
+
+@media (max-width: 600px) {
+    table.grid {
+        font-size: 0.8em;
+    }
+
+    table.grid th,
+    table.grid td {
+        padding: 6px 3px;
+    }
+
+    .slot {
+        padding: 4px 4px;
+    }
+}

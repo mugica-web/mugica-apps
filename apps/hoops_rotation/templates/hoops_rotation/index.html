@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hoops Rotation</title>
+
+    <!-- Site-wide styles first, then this app's own styles on top -->
+    <link rel="stylesheet" href="/static/site.css">
+    <link rel="stylesheet" href="{{ url_for('hoops_rotation.static', filename='hoops_rotation.css') }}">
+
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+    <!-- The planning algorithm (no DOM, no Firebase) -->
+    <script src="{{ url_for('hoops_rotation.static', filename='rotation_engine.js') }}"></script>
+</head>
+<body>
+
+    <div id="user-bar" class="user-bar" style="display: none;">
+        <div class="user-bar-left">
+            <a href="/dashboard" class="back-link">← All apps</a>
+            <span id="user-email"></span>
+        </div>
+        <button onclick="logOut()" class="btn btn-logout">Sign out</button>
+    </div>
+
+    <h1>Hoops Rotation</h1>
+    <p class="dek no-print">Who plays when, and where.</p>
+
+    <!-- ========== SETUP: game settings + roster ========== -->
+    <div id="setup-section" style="display: none;">
+
+        <details id="how-it-works" class="how-it-works">
+            <summary>How it works</summary>
+            <ol>
+                <li>
+                    <strong>Set the game and the sub rules.</strong> The planner picks when to
+                    sub, on the minute (or half minute). You set how many players can come in
+                    at one sub, how long a player stays in once they're in, and how long the
+                    closing five play at the end. Any number can change at a period break.
+                </li>
+                <li>
+                    <strong>Fill in the roster.</strong> For each player: the share of the game
+                    they should play, every position they can play (1–5), and whether they
+                    start and close. Mark who's not at the game as Out.
+                </li>
+                <li>
+                    <strong>Percents are scaled to 500%</strong>, because five players are on
+                    the floor. Nobody goes over 100%.
+                </li>
+                <li>
+                    <strong>Make rotation.</strong> At every moment there's exactly one player
+                    at each position. Nobody sits half the game in a row, and nobody misses
+                    more than one whole quarter (players at 0% excepted). Within those rules
+                    the plan keeps minutes close to target and sits short, and leans toward
+                    more subs over long sits. Sub times are targets: sub at the first dead
+                    ball after.
+                </li>
+                <li>
+                    <strong>Adjust.</strong> Tap a name in the lineup chart to put in someone
+                    from the bench or swap positions. If a change breaks one of your rules, the
+                    page says which. <em>Try another arrangement</em> makes a different plan
+                    from the same inputs.
+                </li>
+            </ol>
+        </details>
+
+        <h2>Game</h2>
+        <div class="field-row">
+            <label class="field field-grow">Opponent / label
+                <input id="game-label" class="input" type="text" placeholder="e.g. vs. Hawks">
+            </label>
+            <label class="field">Date
+                <input id="game-date" class="input" type="date">
+            </label>
+        </div>
+        <div class="field-row" style="margin-top: 12px;">
+            <label class="field">Periods
+                <input id="set-periods" class="input input-num" type="number" min="1" max="8" step="1" inputmode="numeric">
+            </label>
+            <label class="field">Minutes each
+                <input id="set-minutes" class="input input-num" type="number" min="1" max="30" step="0.5" inputmode="decimal">
+            </label>
+            <label class="field">Sub times on the
+                <select id="set-grid" class="input">
+                    <option value="1">minute</option>
+                    <option value="0.5">half minute</option>
+                </select>
+            </label>
+        </div>
+        <div class="field-row" style="margin-top: 12px;">
+            <label class="field">Max in per sub
+                <select id="set-maxsubs" class="input input-num">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                </select>
+            </label>
+            <label class="field">Min stint (min)
+                <input id="set-minstint" class="input input-num" type="number" min="0.5" max="20" step="0.5" inputmode="decimal">
+            </label>
+            <label class="field">Closers play last (min)
+                <input id="set-close" class="input input-num" type="number" min="0.5" max="30" step="0.5" inputmode="decimal">
+            </label>
+        </div>
+        <p id="clock-note" class="note"></p>
+
+        <h2>Roster</h2>
+        <div id="roster" class="roster"></div>
+        <div class="actions">
+            <button class="btn btn-secondary" onclick="addPlayer()">+ Add player</button>
+            <span id="save-status" class="save-status"></span>
+        </div>
+        <div id="roster-summary" class="roster-summary"></div>
+
+        <div class="actions">
+            <button class="btn btn-primary" id="make-btn" onclick="makeRotation()">Make rotation</button>
+        </div>
+        <div id="make-errors"></div>
+    </div>
+
+    <!-- ========== THE PLAN ========== -->
+    <div id="plan-section" style="display: none;">
+        <h2>Rotation</h2>
+        <div class="plan-head">
+            <div class="plan-title" id="plan-title"></div>
+            <div class="plan-meta" id="plan-meta"></div>
+        </div>
+        <p id="plan-stale" class="stale" style="display: none;">
+            The roster or game settings changed since this rotation was made. Tap Make rotation to update it.
+        </p>
+        <div class="actions no-print">
+            <button class="btn btn-secondary" id="shuffle-btn" onclick="shufflePlan()">Try another arrangement</button>
+            <button class="btn btn-secondary" onclick="window.print()">Print</button>
+            <button class="btn btn-primary" id="save-game-btn" onclick="saveGame()">Save game</button>
+            <span id="plan-unsaved" class="unsaved"></span>
+        </div>
+        <div id="plan-warnings"></div>
+
+        <div class="print-break">
+            <div class="section-label">Lineups</div>
+            <div class="table-wrap"><table class="grid by-shift" id="by-shift"></table></div>
+        </div>
+
+        <div class="print-break">
+            <div class="section-label">Minutes by player</div>
+            <div class="table-wrap"><table class="grid by-player" id="by-player"></table></div>
+        </div>
+    </div>
+
+    <!-- ========== SAVED GAMES ========== -->
+    <div id="saved-section" style="display: none;">
+        <h2>Saved games</h2>
+        <div id="saved-games"></div>
+    </div>
+
+    <dialog id="swap-dialog" class="swap"></dialog>
+
+    <script>
+{% include "partials/firebase_init.js" %}
+
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const NPOS = RotationEngine.NPOS;
+    const DEFAULT_SETTINGS = {
+        periods: 4, periodMinutes: 8, grid: 1,     // grid = minutes between possible sub times
+        maxSubs: 2, minStint: 3, closeMinutes: 4    // minStint / closeMinutes in minutes
+    };
+
+
+    // ---- AUTHENTICATION ----
+
+    function logOut() {
+        auth.signOut().then(function() { window.location.href = "/"; });
+    }
+
+    // Firebase can report "no user" for a moment before it restores a saved
+    // session, so only redirect if there's still no user shortly after.
+    let authInitialized = false;
+    auth.onAuthStateChanged(function(user) {
+        if (user) {
+            authInitialized = true;
+            document.getElementById("user-bar").style.display = "flex";
+            document.getElementById("user-email").textContent = user.email || user.displayName || "User";
+            loadRoster();
+            listenToGames();
+        } else if (authInitialized) {
+            window.location.href = "/";
+        } else {
+            setTimeout(function() { if (!auth.currentUser) window.location.href = "/"; }, 1500);
+        }
+    });
+
+    function userDoc() {
+        return db.collection("users").doc(auth.currentUser.uid);
+    }
+    function rosterRef() {
+        return userDoc().collection("hoopsRotation").doc("roster");
+    }
+    function gamesRef() {
+        return userDoc().collection("hoopsGames");
+    }
+
+
+    // ---- STATE ----
+    //
+    // roster   = [{ id, name, pct, positions: [1..5], starter, closer, present }]
+    //            saved to Firestore users/{uid}/hoopsRotation/roster with the settings
+    // settings = DEFAULT_SETTINGS shape
+    // plan     = the rotation on screen (made from the roster or opened from a saved game):
+    //   { label, date, settings, players: [roster entries at the game, without `present`],
+    //     segments: [{ start, end, slots: [id at 1..5] }] (start/end in ticks of settings.grid min),
+    //     targets: { id: target ticks }, warnings, seed,
+    //     gameId (null until saved), unsaved, fromRoster, rosterVersion }
+    let roster = [];
+    let settings = Object.assign({}, DEFAULT_SETTINGS);
+    let plan = null;
+    let savedGames = [];
+    let rosterVersion = 0;   // bumps on every roster/settings edit, to spot a stale plan
+    let saveTimer = null;
+
+    function newId() {
+        return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+    }
+
+    function todayString() {
+        const d = new Date();
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" +
+            String(d.getDate()).padStart(2, "0");
+    }
+
+
+    // ---- SMALL HELPERS ----
+
+    // el("div", { className: "x", onclick: f }, [children or strings])
+    function el(tag, props, children) {
+        const node = document.createElement(tag);
+        if (props) {
+            Object.keys(props).forEach(function(k) {
+                if (k === "attrs") {
+                    Object.keys(props.attrs).forEach(function(a) { node.setAttribute(a, props.attrs[a]); });
+                } else if (k === "style") {
+                    node.setAttribute("style", props.style);
+                } else {
+                    node[k] = props[k];
+                }
+            });
+        }
+        (children || []).forEach(function(c) {
+            if (c == null) return;
+            node.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+        });
+        return node;
+    }
+
+    // 9.5 → "9:30"
+    function fmtClock(minutes) {
+        const secs = Math.round(minutes * 60);
+        return Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0");
+    }
+
+    // The engine works in ticks of st.grid minutes.
+    function rules(st) {
+        const periodTicks = Math.round(st.periodMinutes / st.grid);
+        const ticks = st.periods * periodTicks;
+        return {
+            ticks: ticks,
+            tickMinutes: st.grid,
+            periodTicks: periodTicks,
+            maxSubs: st.maxSubs,
+            minStint: Math.max(1, Math.round(st.minStint / st.grid)),
+            closeTicks: Math.max(1, Math.round(st.closeMinutes / st.grid))
+        };
+    }
+
+    // Problems with the settings themselves (before looking at players).
+    function settingsProblems(st) {
+        const out = [];
+        const total = st.periods * st.periodMinutes;
+        if (Math.abs(st.periodMinutes / st.grid - Math.round(st.periodMinutes / st.grid)) > 1e-9) {
+            out.push("Period length has to be a whole number of " + (st.grid === 1 ? "minutes" : "half minutes") +
+                " when subs are on the " + (st.grid === 1 ? "minute" : "half minute") + ".");
+        }
+        if (st.closeMinutes >= total) out.push("The closing stretch has to be shorter than the game.");
+        if (st.minStint > total) out.push("The minimum stint is longer than the game.");
+        return out;
+    }
+
+    function periodPrefix(st) {
+        if (st.periods === 4) return "Q";
+        if (st.periods === 2) return "H";
+        return "P";
+    }
+    function periodWord(st) {
+        if (st.periods === 4) return "quarter";
+        if (st.periods === 2) return "half";
+        return "period";
+    }
+
+    // Game clock (counting down) at the start of tick t: "Q2 5:00"
+    function tickLabel(t, st) {
+        const r = rules(st);
+        if (t >= r.ticks) return "End";
+        const period = Math.floor(t / r.periodTicks);
+        const k = t % r.periodTicks;
+        return periodPrefix(st) + (period + 1) + " " + fmtClock(st.periodMinutes - k * st.grid);
+    }
+
+    function readSettingsInputs() {
+        function num(id) { return Number(document.getElementById(id).value); }
+        const periods = Math.round(num("set-periods"));
+        const minutes = num("set-minutes");
+        const grid = num("set-grid") === 0.5 ? 0.5 : 1;
+        const maxSubs = Math.round(num("set-maxsubs"));
+        const minStint = num("set-minstint");
+        const close = num("set-close");
+        return {
+            periods: periods >= 1 && periods <= 8 ? periods : settings.periods,
+            periodMinutes: minutes > 0 && minutes <= 30 ? minutes : settings.periodMinutes,
+            grid: grid,
+            maxSubs: maxSubs >= 1 && maxSubs <= 5 ? maxSubs : settings.maxSubs,
+            minStint: minStint > 0 ? minStint : settings.minStint,
+            closeMinutes: close > 0 ? close : settings.closeMinutes
+        };
+    }
+
+
+    // ---- LOADING AND SAVING THE ROSTER ----
+
+    function loadRoster() {
+        document.getElementById("game-date").value = todayString();
+        rosterRef().get().then(function(doc) {
+            if (doc.exists) {
+                const data = doc.data();
+                roster = (data.players || []).map(normalisePlayer);
+                settings = cleanSettings(data.settings);
+            }
+            showSetup();
+        }).catch(function(error) {
+            console.log("Error loading roster:", error);
+            showSetup();
+            setSaveStatus("Couldn't load the saved roster: " + error.message, true);
+        });
+    }
+
+    // Keep only known settings, filling in defaults.
+    function cleanSettings(raw) {
+        const out = {};
+        Object.keys(DEFAULT_SETTINGS).forEach(function(k) {
+            const v = raw ? Number(raw[k]) : NaN;
+            out[k] = isFinite(v) && v > 0 ? v : DEFAULT_SETTINGS[k];
+        });
+        return out;
+    }
+
+    function normalisePlayer(p) {
+        return {
+            id: p.id || newId(),
+            name: p.name || "",
+            pct: Number(p.pct) || 0,
+            positions: (p.positions || []).map(Number).filter(function(x) { return x >= 1 && x <= NPOS; }),
+            starter: !!p.starter,
+            closer: !!p.closer,
+            present: p.present !== false
+        };
+    }
+
+    function showSetup() {
+        document.getElementById("set-periods").value = settings.periods;
+        document.getElementById("set-minutes").value = settings.periodMinutes;
+        document.getElementById("set-grid").value = String(settings.grid);
+        document.getElementById("set-maxsubs").value = String(settings.maxSubs);
+        document.getElementById("set-minstint").value = settings.minStint;
+        document.getElementById("set-close").value = settings.closeMinutes;
+        document.getElementById("setup-section").style.display = "block";
+        document.getElementById("saved-section").style.display = "block";
+        if (roster.length === 0) {
+            for (let i = 0; i < 8; i++) roster.push(blankPlayer());
+            document.getElementById("how-it-works").open = true;
+        }
+        renderRoster();
+        renderClockNote();
+    }
+
+    function blankPlayer() {
+        return { id: newId(), name: "", pct: 50, positions: [], starter: false, closer: false, present: true };
+    }
+
+    // Called after every roster/settings edit: mark the plan stale and save soon.
+    function rosterChanged() {
+        rosterVersion++;
+        renderSummary();
+        updateStale();
+        clearTimeout(saveTimer);
+        setSaveStatus("Saving…");
+        saveTimer = setTimeout(saveRoster, 700);
+    }
+
+    function saveRoster() {
+        rosterRef().set({
+            players: roster,
+            settings: settings,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(function() {
+            setSaveStatus("Roster saved");
+        }).catch(function(error) {
+            console.log("Error saving roster:", error);
+            setSaveStatus("Couldn't save: " + error.message, true);
+        });
+    }
+
+    function setSaveStatus(text, isError) {
+        const node = document.getElementById("save-status");
+        node.textContent = text;
+        node.className = "save-status" + (isError ? " error" : "");
+    }
+
+
+    // ---- GAME SETTINGS ----
+
+    ["set-periods", "set-minutes", "set-grid", "set-maxsubs", "set-minstint", "set-close"].forEach(function(id) {
+        document.getElementById(id).addEventListener("input", function() {
+            settings = readSettingsInputs();
+            renderClockNote();
+            rosterChanged();
+        });
+    });
+
+    function renderClockNote() {
+        const st = settings;
+        const problems = settingsProblems(st);
+        const node = document.getElementById("clock-note");
+        if (problems.length) {
+            node.textContent = problems.join(" ");
+            node.className = "note bad-note";
+            return;
+        }
+        node.className = "note";
+        node.textContent =
+            fmtClock(st.periods * st.periodMinutes) + " game. Subs on the " +
+            (st.grid === 1 ? "minute" : "half minute") + ", at most " + st.maxSubs +
+            " player" + (st.maxSubs === 1 ? "" : "s") + " in per sub (any number between " +
+            periodWord(st) + "s). Once in, a player stays at least " + fmtClock(st.minStint) +
+            ". The closers play the last " + fmtClock(st.closeMinutes) + ".";
+    }
+
+    ["game-label", "game-date"].forEach(function(id) {
+        document.getElementById(id).addEventListener("input", function() {
+            if (!plan) return;
+            plan.label = document.getElementById("game-label").value.trim();
+            plan.date = document.getElementById("game-date").value;
+            plan.unsaved = true;
+            renderPlanHead();
+        });
+    });
+
+
+    // ---- ROSTER UI ----
+
+    function addPlayer() {
+        roster.push(blankPlayer());
+        renderRoster();
+        rosterChanged();
+        const inputs = document.querySelectorAll(".player-name");
+        if (inputs.length) inputs[inputs.length - 1].focus();
+    }
+
+    function removePlayer(id) {
+        const p = roster.find(function(x) { return x.id === id; });
+        if (p && p.name && !confirm("Remove " + p.name + " from the roster?")) return;
+        roster = roster.filter(function(x) { return x.id !== id; });
+        renderRoster();
+        rosterChanged();
+    }
+
+    function chip(label, pressed, title, onclick) {
+        return el("button", {
+            className: "chip", type: "button", title: title, onclick: onclick,
+            attrs: { "aria-pressed": pressed ? "true" : "false" }
+        }, [label]);
+    }
+
+    function renderRoster() {
+        const box = document.getElementById("roster");
+        box.innerHTML = "";
+        roster.forEach(function(p) {
+            const name = el("input", {
+                className: "input player-name", type: "text", value: p.name, placeholder: "Name",
+                oninput: function() { p.name = name.value.trim(); rosterChanged(); }
+            });
+            const pct = el("input", {
+                className: "input player-pct", type: "number", min: 0, max: 100, step: 5,
+                value: p.pct, attrs: { inputmode: "numeric", "aria-label": "Percent of game" },
+                oninput: function() { p.pct = Math.max(0, Math.min(100, Number(pct.value) || 0)); rosterChanged(); }
+            });
+            const here = el("button", {
+                className: "chip here-toggle", type: "button",
+                title: "Is this player at the game?",
+                attrs: { "aria-pressed": p.present ? "true" : "false" },
+                onclick: function() { p.present = !p.present; renderRoster(); rosterChanged(); }
+            }, [p.present ? "Here" : "Out"]);
+
+            const chips = [];
+            for (let pos = 1; pos <= NPOS; pos++) {
+                chips.push(chip(String(pos), p.positions.indexOf(pos) !== -1, "Can play position " + pos, function() {
+                    const at = p.positions.indexOf(pos);
+                    if (at === -1) p.positions.push(pos); else p.positions.splice(at, 1);
+                    p.positions.sort();
+                    renderRoster();
+                    rosterChanged();
+                }));
+            }
+            chips.push(el("span", { className: "chip-gap" }));
+            chips.push(chip("Start", p.starter, "In the starting five", function() {
+                p.starter = !p.starter; renderRoster(); rosterChanged();
+            }));
+            chips.push(chip("Close", p.closer, "In the closing five", function() {
+                p.closer = !p.closer; renderRoster(); rosterChanged();
+            }));
+
+            box.appendChild(el("div", { className: "player" + (p.present ? "" : " absent") }, [
+                el("div", { className: "player-top" }, [
+                    here,
+                    name,
+                    el("span", { className: "pct-wrap" }, [pct, "%"]),
+                    el("button", {
+                        className: "btn btn-text btn-remove", type: "button", title: "Remove player",
+                        onclick: function() { removePlayer(p.id); }
+                    }, ["×"])
+                ]),
+                el("div", { className: "chips" }, chips)
+            ]));
+        });
+        renderSummary();
+    }
+
+    function renderSummary() {
+        const here = roster.filter(function(p) { return p.present; });
+        const total = here.reduce(function(a, p) { return a + p.pct; }, 0);
+        const starters = here.filter(function(p) { return p.starter; }).length;
+        const closers = here.filter(function(p) { return p.closer; }).length;
+
+        function item(label, value, bad) {
+            return el("span", { className: bad ? "bad" : "" }, [label + " ", el("b", null, [value])]);
+        }
+        const posCounts = [];
+        for (let pos = 1; pos <= NPOS; pos++) {
+            posCounts.push(pos + ":" + here.filter(function(p) { return p.positions.indexOf(pos) !== -1; }).length);
+        }
+        const box = document.getElementById("roster-summary");
+        box.innerHTML = "";
+        box.appendChild(item("Here", String(here.length), here.length < NPOS));
+        box.appendChild(item("Total", total + "%" + (here.length && total !== 500 ? " → scaled to 500%" : ""), false));
+        box.appendChild(item("Starters", starters + "/5", starters !== NPOS));
+        box.appendChild(item("Closers", closers + "/5", closers !== NPOS));
+        box.appendChild(item("Can play", posCounts.join("  "), false));
+    }
+
+
+    // ---- MAKING A PLAN ----
+
+    function showErrors(boxId, title, list, cls) {
+        const box = document.getElementById(boxId);
+        box.innerHTML = "";
+        if (!list || !list.length) return;
+        box.appendChild(el("div", { className: cls || "errors" }, [
+            title ? el("strong", null, [title]) : null,
+            el("ul", null, list.map(function(t) { return el("li", null, [t]); }))
+        ]));
+    }
+
+    // Runs the engine after letting the page repaint, so the button can say "Planning…".
+    function runEngine(button, players, st, seed, done) {
+        const label = button.textContent;
+        button.disabled = true;
+        button.textContent = "Planning…";
+        setTimeout(function() {
+            const r = rules(st);
+            const result = RotationEngine.plan(Object.assign({ players: players, seed: seed }, r));
+            button.disabled = false;
+            button.textContent = label;
+            done(result);
+        }, 30);
+    }
+
+    function makeRotation() {
+        settings = readSettingsInputs();
+        const here = roster.filter(function(p) { return p.present; });
+        const problems = settingsProblems(settings);
+        const unnamed = here.filter(function(p) { return !p.name; }).length;
+        if (unnamed) problems.push(unnamed + " player" + (unnamed === 1 ? " has" : "s have") +
+            " no name. Name them or remove them.");
+        const seen = {};
+        here.forEach(function(p) {
+            const key = p.name.toLowerCase();
+            if (p.name && seen[key]) problems.push("Two players are named " + p.name + ".");
+            seen[key] = true;
+        });
+        if (problems.length) {
+            showErrors("make-errors", "Can't make a rotation yet:", problems);
+            return;
+        }
+
+        const players = here.map(function(p) {
+            return { id: p.id, name: p.name, pct: p.pct, positions: p.positions.slice(),
+                     starter: p.starter, closer: p.closer };
+        });
+        const st = Object.assign({}, settings);
+        const seed = Math.floor(Math.random() * 1e9);
+        const version = rosterVersion;
+        runEngine(document.getElementById("make-btn"), players, st, seed, function(result) {
+            if (!result.ok) {
+                showErrors("make-errors", "Can't make a rotation yet:", result.errors);
+                return;
+            }
+            showErrors("make-errors", null, []);
+
+            const total = players.reduce(function(a, p) { return a + p.pct; }, 0);
+            const warnings = result.warnings.slice();
+            if (total !== 500) {
+                warnings.unshift("The percents added up to " + total + "%, so they were scaled to 500%. " +
+                    "The Target column shows each player's scaled share.");
+            }
+            plan = {
+                label: document.getElementById("game-label").value.trim(),
+                date: document.getElementById("game-date").value,
+                settings: st,
+                players: players,
+                segments: result.segments,
+                targets: result.targets,
+                warnings: warnings,
+                seed: seed,
+                gameId: null,
+                unsaved: true,
+                fromRoster: true,
+                rosterVersion: version
+            };
+            renderPlan();
+            document.getElementById("plan-section").scrollIntoView({ behavior: "smooth" });
+        });
+    }
+
+    // Same players and settings, a different plan.
+    function shufflePlan() {
+        if (!plan) return;
+        const seed = Math.floor(Math.random() * 1e9);
+        runEngine(document.getElementById("shuffle-btn"), plan.players, plan.settings, seed, function(result) {
+            if (!result.ok) {
+                alert(result.errors.join("\n"));
+                return;
+            }
+            plan.segments = result.segments;
+            plan.targets = result.targets;
+            plan.seed = seed;
+            plan.unsaved = true;
+            renderPlan();
+        });
+    }
+
+    function updateStale() {
+        const stale = plan && plan.fromRoster && plan.rosterVersion !== rosterVersion;
+        document.getElementById("plan-stale").style.display = stale ? "block" : "none";
+    }
+
+
+    // ---- SHOWING THE PLAN ----
+
+    function playerById(id) {
+        return plan.players.find(function(p) { return p.id === id; });
+    }
+    function nameOf(id) {
+        const p = playerById(id);
+        return p ? p.name : "?";
+    }
+
+    function plannedTicks(id) {
+        return plan.segments.reduce(function(n, seg) {
+            return n + (seg.slots.indexOf(id) !== -1 ? seg.end - seg.start : 0);
+        }, 0);
+    }
+
+    // Merge neighbouring segments that ended up with the same lineup.
+    function mergeSegments() {
+        const out = [];
+        plan.segments.forEach(function(seg) {
+            const last = out[out.length - 1];
+            if (last && last.slots.join() === seg.slots.join()) last.end = seg.end;
+            else out.push({ start: seg.start, end: seg.end, slots: seg.slots.slice() });
+        });
+        plan.segments = out;
+    }
+
+    // Rule checks for the plan as it stands (after hand changes too).
+    function issueTexts() {
+        const st = plan.settings;
+        const r = rules(st);
+        return RotationEngine.check(plan.players, r, plan.segments).map(function(x) {
+            const at = tickLabel(x.tick, st);
+            const names = (x.ids || []).map(nameOf).join(", ");
+            if (x.type === "too-many-subs") return at + ": " + x.count + " players come in (limit " + st.maxSubs + ").";
+            if (x.type === "short-stint") return names + " is in for only " + fmtClock(x.length * st.grid) +
+                " from " + at + " (minimum " + fmtClock(st.minStint) + ").";
+            if (x.type === "starters") return "The starting lineup has non-starters: " + names + ".";
+            if (x.type === "closers") return "The closing stretch has non-closers: " + names + ".";
+            if (x.type === "position") return names + " is at " + x.position + " from " + at +
+                ", which isn't one of their positions.";
+            if (x.type === "long-sit") return names + " sits " + fmtClock(x.length * st.grid) + " in a row from " + at +
+                " (half the game or more).";
+            if (x.type === "missed-periods") return names + " doesn't play in " + x.periods.map(function(q) {
+                return periodPrefix(st) + (q + 1);
+            }).join(" or ") + " (more than one " + periodWord(st) + " without playing).";
+            return at + ": " + x.type;
+        });
+    }
+
+    function renderPlan() {
+        document.getElementById("plan-section").style.display = "block";
+        renderPlanHead();
+        updateStale();
+        const issues = issueTexts();
+        const box = document.getElementById("plan-warnings");
+        box.innerHTML = "";
+        if (issues.length) {
+            box.appendChild(el("div", { className: "errors" }, [
+                el("strong", null, ["This plan breaks your rules:"]),
+                el("ul", null, issues.map(function(t) { return el("li", null, [t]); }))
+            ]));
+        }
+        if (plan.warnings && plan.warnings.length) {
+            box.appendChild(el("div", { className: "warnings" }, [
+                el("ul", null, plan.warnings.map(function(t) { return el("li", null, [t]); }))
+            ]));
+        }
+        renderLineups();
+        renderByPlayer();
+        renderSavedGames();
+    }
+
+    function renderPlanHead() {
+        const st = plan.settings;
+        let dateText = "";
+        if (plan.date) {
+            const d = new Date(plan.date + "T12:00:00");
+            dateText = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+        }
+        const subs = plan.segments.filter(function(seg) {
+            return seg.start > 0 && seg.start % rules(st).periodTicks !== 0;
+        }).length;
+        document.getElementById("plan-title").textContent = plan.label || "Rotation";
+        document.getElementById("plan-meta").textContent = [
+            dateText,
+            st.periods + " × " + fmtClock(st.periodMinutes),
+            subs + " sub" + (subs === 1 ? "" : "s") + " during play"
+        ].filter(Boolean).join(" · ");
+        document.getElementById("plan-unsaved").textContent = plan.unsaved ? "Not saved" : "Saved";
+        document.getElementById("save-game-btn").textContent = plan.gameId ? "Save changes" : "Save game";
+    }
+
+    // One row per lineup, each preceded by who comes in and who goes out.
+    function renderLineups() {
+        const st = plan.settings;
+        const r = rules(st);
+        const table = document.getElementById("by-shift");
+        table.innerHTML = "";
+        const head = [el("th", null, ["From"])];
+        for (let pos = 1; pos <= NPOS; pos++) head.push(el("th", null, [String(pos)]));
+        table.appendChild(el("thead", null, [el("tr", null, head)]));
+
+        const body = el("tbody");
+        plan.segments.forEach(function(seg, k) {
+            const prev = k > 0 ? plan.segments[k - 1].slots : null;
+            const atBreak = seg.start % r.periodTicks === 0;
+            if (prev) {
+                const ins = seg.slots.filter(function(id) { return prev.indexOf(id) === -1; });
+                const outs = prev.filter(function(id) { return seg.slots.indexOf(id) === -1; });
+                const text = ins.length
+                    ? [el("span", null, ["In: " + ins.map(nameOf).join(", ")]),
+                       el("span", null, ["Out: " + outs.map(nameOf).join(", ")])]
+                    : [el("span", null, ["Positions change"])];
+                body.appendChild(el("tr", { className: atBreak ? "period-start" : "" }, [
+                    el("td", { className: "changes", colSpan: NPOS + 1 }, text)
+                ]));
+            }
+            const cells = [el("th", { className: "shift-label" }, [
+                tickLabel(seg.start, st),
+                el("div", { className: "seg-len" }, [fmtClock((seg.end - seg.start) * st.grid)])
+            ])];
+            seg.slots.forEach(function(id, pos) {
+                const isNew = prev && prev.indexOf(id) === -1;
+                cells.push(el("td", null, [el("button", {
+                    className: "slot" + (isNew ? " new" : ""), type: "button",
+                    title: "Change who plays " + (pos + 1) + " here",
+                    onclick: function() { openSwap(k, pos); }
+                }, [nameOf(id)])]));
+            });
+            body.appendChild(el("tr", null, cells));
+        });
+        table.appendChild(body);
+    }
+
+    // A timeline bar per player: dark blocks when on the floor, labelled with the position.
+    function renderByPlayer() {
+        const st = plan.settings;
+        const r = rules(st);
+        const T = r.ticks;
+        const table = document.getElementById("by-player");
+        table.innerHTML = "";
+
+        const scale = el("div", { className: "timeline timeline-scale" });
+        for (let p = 0; p < st.periods; p++) {
+            scale.appendChild(el("span", {
+                className: "tl-period-label",
+                style: "left:" + (100 * p / st.periods) + "%;width:" + (100 / st.periods) + "%"
+            }, [periodPrefix(st) + (p + 1)]));
+        }
+        table.appendChild(el("thead", null, [el("tr", null, [
+            el("th", null, ["Player"]),
+            el("th", { className: "tl-cell" }, [scale]),
+            el("th", { className: "num" }, ["Plan"]),
+            el("th", { className: "num" }, ["Target"])
+        ])]));
+
+        const body = el("tbody");
+        plan.players.forEach(function(p) {
+            const bar = el("div", { className: "timeline" });
+            for (let q = 1; q < st.periods; q++) {
+                bar.appendChild(el("span", { className: "tl-break", style: "left:" + (100 * q / st.periods) + "%" }));
+            }
+            // Blocks: consecutive segments at the same position merge into one.
+            let block = null;
+            function flush() {
+                if (!block) return;
+                bar.appendChild(el("span", {
+                    className: "tl-on",
+                    title: tickLabel(block.start, st) + " – " + tickLabel(block.end, st) + " at " + block.pos,
+                    style: "left:" + (100 * block.start / T) + "%;width:" + (100 * (block.end - block.start) / T) + "%"
+                }, [String(block.pos)]));
+                block = null;
+            }
+            plan.segments.forEach(function(seg) {
+                const at = seg.slots.indexOf(p.id);
+                if (at === -1) { flush(); return; }
+                if (block && block.pos === at + 1 && block.end === seg.start) { block.end = seg.end; return; }
+                flush();
+                block = { start: seg.start, end: seg.end, pos: at + 1 };
+            });
+            flush();
+
+            const planned = plannedTicks(p.id);
+            const target = plan.targets[p.id] || 0;
+            const offBy = Math.abs(planned - target) * st.grid;
+            const off = offBy >= 2 - 1e-6;
+            body.appendChild(el("tr", null, [
+                el("th", null, [p.name]),
+                el("td", { className: "tl-cell" }, [bar]),
+                el("td", {
+                    className: "num" + (off ? " off-target" : ""),
+                    title: off ? "Two minutes or more away from target" : ""
+                }, [fmtClock(planned * st.grid), el("div", { className: "pct" }, [Math.round(100 * planned / T) + "%"])]),
+                el("td", { className: "num" }, [fmtClock(target * st.grid),
+                    el("div", { className: "pct" }, [Math.round(100 * target / T) + "%"])])
+            ]));
+        });
+        table.appendChild(body);
+    }
+
+
+    // ---- MANUAL SWAPS ----
+
+    function openSwap(k, pos) {
+        const st = plan.settings;
+        const seg = plan.segments[k];
+        const len = seg.end - seg.start;
+        const lineup = seg.slots;
+        const current = playerById(lineup[pos]);
+        const dialog = document.getElementById("swap-dialog");
+        dialog.innerHTML = "";
+
+        function minutesText(id, delta) {
+            const now = plannedTicks(id);
+            return fmtClock(now * st.grid) + " → " + fmtClock((now + delta) * st.grid) +
+                " (target " + fmtClock((plan.targets[id] || 0) * st.grid) + ")";
+        }
+
+        const bench = plan.players.filter(function(p) {
+            return lineup.indexOf(p.id) === -1 && p.positions.indexOf(pos + 1) !== -1;
+        });
+        const swaps = [];
+        lineup.forEach(function(id, q) {
+            if (q === pos) return;
+            const other = playerById(id);
+            if (other.positions.indexOf(pos + 1) !== -1 && current.positions.indexOf(q + 1) !== -1) {
+                swaps.push({ player: other, q: q });
+            }
+        });
+
+        const children = [
+            el("h3", null, [tickLabel(seg.start, st) + " – " + tickLabel(seg.end, st) + " · Position " + (pos + 1)]),
+            el("p", { className: "sub" }, ["Now: " + current.name + ". This changes only these " +
+                fmtClock(len * st.grid) + "."]),
+            el("div", { className: "swap-group" }, ["Put in from the bench"])
+        ];
+        if (bench.length) {
+            bench.forEach(function(p) {
+                children.push(el("button", {
+                    className: "btn btn-secondary swap-option", type: "button",
+                    onclick: function() {
+                        lineup[pos] = p.id;
+                        afterSwap();
+                    }
+                }, [p.name, el("small", null, [minutesText(p.id, len)])]));
+            });
+            children.push(el("p", { className: "swap-none" }, [current.name + ": " + minutesText(current.id, -len)]));
+        } else {
+            children.push(el("p", { className: "swap-none" }, ["Nobody on the bench plays " + (pos + 1) + "."]));
+        }
+        children.push(el("div", { className: "swap-group" }, ["Swap positions with"]));
+        if (swaps.length) {
+            swaps.forEach(function(x) {
+                children.push(el("button", {
+                    className: "btn btn-secondary swap-option", type: "button",
+                    onclick: function() {
+                        lineup[x.q] = current.id;
+                        lineup[pos] = x.player.id;
+                        afterSwap();
+                    }
+                }, [x.player.name, el("small", null, ["now at " + (x.q + 1) + ", " + current.name + " goes to " + (x.q + 1)])]));
+            });
+        } else {
+            children.push(el("p", { className: "swap-none" }, ["No one on the floor can trade spots with " + current.name + "."]));
+        }
+        children.push(el("div", { className: "actions" }, [
+            el("button", { className: "btn btn-text", type: "button", onclick: function() { dialog.close(); } }, ["Cancel"])
+        ]));
+        children.forEach(function(c) { dialog.appendChild(c); });
+
+        function afterSwap() {
+            mergeSegments();
+            plan.unsaved = true;
+            dialog.close();
+            renderPlan();
+        }
+        dialog.showModal();
+    }
+
+    // Tapping the dark area around the dialog closes it.
+    document.getElementById("swap-dialog").addEventListener("click", function(e) {
+        if (e.target === this) this.close();
+    });
+
+
+    // ---- SAVED GAMES ----
+
+    let unsubscribeGames = null;
+    function listenToGames() {
+        if (unsubscribeGames) unsubscribeGames();
+        unsubscribeGames = gamesRef().orderBy("date", "desc").onSnapshot(function(snapshot) {
+            savedGames = [];
+            snapshot.forEach(function(doc) { savedGames.push(Object.assign({ id: doc.id }, doc.data())); });
+            renderSavedGames();
+        }, function(error) {
+            console.log("Error listening to games:", error);
+            document.getElementById("saved-games").textContent = "Couldn't load saved games: " + error.message;
+        });
+    }
+
+    function saveGame() {
+        if (!plan) return;
+        const button = document.getElementById("save-game-btn");
+        const data = {
+            label: plan.label || "",
+            date: plan.date || "",
+            settings: plan.settings,
+            players: plan.players,
+            segments: plan.segments,
+            targets: plan.targets,
+            warnings: plan.warnings || [],
+            seed: plan.seed || 0,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        button.disabled = true;
+        const write = plan.gameId ? gamesRef().doc(plan.gameId).set(data) : gamesRef().add(data);
+        write.then(function(ref) {
+            if (ref && ref.id) plan.gameId = ref.id;
+            plan.unsaved = false;
+            renderPlanHead();
+            renderSavedGames();
+        }).catch(function(error) {
+            alert("Couldn't save the game: " + error.message);
+        }).finally(function() {
+            button.disabled = false;
+        });
+    }
+
+    function openGame(id) {
+        const g = savedGames.find(function(x) { return x.id === id; });
+        if (!g || !g.segments) return;
+        if (plan && plan.unsaved && !confirm("The rotation on screen isn't saved. Open this game anyway?")) return;
+        plan = {
+            label: g.label || "",
+            date: g.date || "",
+            settings: cleanSettings(g.settings),
+            players: g.players || [],
+            segments: g.segments.map(function(s) { return { start: s.start, end: s.end, slots: s.slots.slice() }; }),
+            targets: g.targets || {},
+            warnings: g.warnings || [],
+            seed: g.seed || 0,
+            gameId: g.id,
+            unsaved: false,
+            fromRoster: false,
+            rosterVersion: -1
+        };
+        document.getElementById("game-label").value = plan.label;
+        document.getElementById("game-date").value = plan.date;
+        renderPlan();
+        document.getElementById("plan-section").scrollIntoView({ behavior: "smooth" });
+    }
+
+    function deleteGame(id) {
+        const g = savedGames.find(function(x) { return x.id === id; });
+        if (!g || !confirm("Delete the saved game " + (g.label || "Rotation") + (g.date ? " (" + g.date + ")" : "") + "?")) return;
+        gamesRef().doc(id).delete().then(function() {
+            if (plan && plan.gameId === id) {
+                plan.gameId = null;
+                plan.unsaved = true;
+                renderPlanHead();
+            }
+        }).catch(function(error) {
+            alert("Couldn't delete: " + error.message);
+        });
+    }
+
+    function renderSavedGames() {
+        const box = document.getElementById("saved-games");
+        box.innerHTML = "";
+        if (!savedGames.length) {
+            box.appendChild(el("p", { className: "note" }, ["No saved games yet. Make a rotation and tap Save game."]));
+            return;
+        }
+        savedGames.forEach(function(g) {
+            const current = plan && plan.gameId === g.id;
+            box.appendChild(el("div", { className: "game-row" + (current ? " current" : "") }, [
+                el("div", { className: "game-row-name" }, [g.label || "Rotation", el("small", null, [g.date || ""])]),
+                el("button", { className: "btn btn-secondary", type: "button", onclick: function() { openGame(g.id); } },
+                    [current ? "Showing" : "Open"]),
+                el("button", { className: "btn btn-text", type: "button", onclick: function() { deleteGame(g.id); } }, ["Delete"])
+            ]));
+        });
+    }
+
+    // Warn before leaving with an unsaved rotation.
+    window.addEventListener("beforeunload", function(e) {
+        if (plan && plan.unsaved) { e.preventDefault(); e.returnValue = ""; }
+    });
+    </script>
+
+</body>
+</html>
