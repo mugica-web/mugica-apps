@@ -80,6 +80,8 @@ can't appear in every quarter when min stint × quarters exceeds their minutes.
   edge marks a player just subbed in
 - Minutes by player: a timeline bar per player (blocks labelled with position,
   period lines), Plan and Target as m:ss and percent. Amber = 2:00+ off target
+- "Reset positions & %" clears every player's positions and sets everyone to an
+  equal split (500% ÷ players Here, max 100%); names, Start/Close, Here/Out stay
 - A plan made from the roster is flagged stale when the roster/settings change
 - Planning runs after a 30 ms repaint so the button can show "Planning…"
   (about 0.2–0.5 s)
