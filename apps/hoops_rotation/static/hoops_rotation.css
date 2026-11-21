@@ -150,7 +150,27 @@
 
 .player-pct {
     width: 68px;
+    padding-left: 6px;
+    padding-right: 6px;
     text-align: right;
+}
+
+/* "≈ 24:30": the minutes a player's % works out to after scaling */
+.player-mins {
+    min-width: 46px;
+    margin-left: 4px;
+    font-family: var(--numeric);
+    font-size: 1.1em;
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.player.absent .player-mins {
+    visibility: hidden;
+}
+
+.summary-line {
+    flex-basis: 100%;
 }
 
 .chips {
