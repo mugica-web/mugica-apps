@@ -58,6 +58,15 @@ apps/
   hoops_rotation/           — Hoops Rotation (Blueprint, template, engine JS, stylesheet)
 ```
 
+## Git Workflow
+
+The owner has standing approval for this: when a change is finished and
+tested, commit it on a branch, open a pull request into `main`, and merge it
+yourself (merge commit, PR title as the commit title plus `(#N)`). Don't stop
+to ask before opening or merging. Merging to `main` deploys to the live site
+via Vercel. Say in your reply what was merged. Still ask first for anything
+risky or hard to undo (deleting data, Firestore rules, secrets, force-pushes).
+
 ## Site Flow
 
 1. `/` — Google sign-in. On success, checks the `allowedEmails` collection in
