@@ -113,6 +113,7 @@
         <div id="roster" class="roster"></div>
         <div class="actions">
             <button class="btn btn-secondary" onclick="addPlayer()">+ Add player</button>
+            <button class="btn btn-text" onclick="resetPositionsAndPercents()">Reset positions &amp; %</button>
             <span id="save-status" class="save-status"></span>
         </div>
         <div id="roster-summary" class="roster-summary"></div>
@@ -473,6 +474,23 @@
         const p = roster.find(function(x) { return x.id === id; });
         if (p && p.name && !confirm("Remove " + p.name + " from the roster?")) return;
         roster = roster.filter(function(x) { return x.id !== id; });
+        renderRoster();
+        rosterChanged();
+    }
+
+    // Clears every player's positions and gives everyone an equal share of
+    // the game (500% split across the players marked Here). Names, Start,
+    // Close and Here/Out are left alone.
+    function resetPositionsAndPercents() {
+        if (!roster.length) return;
+        const here = roster.filter(function(p) { return p.present; }).length || roster.length;
+        const share = Math.min(100, Math.round(500 / here));
+        if (!confirm("Clear everyone's positions and set every player to " + share +
+            "% (an equal split of 500% across the " + here + " here)?")) return;
+        roster.forEach(function(p) {
+            p.positions = [];
+            p.pct = share;
+        });
         renderRoster();
         rosterChanged();
     }
