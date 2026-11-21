@@ -43,7 +43,7 @@ whenever they can (tests: always met so far):
    "starters until the closing stretch". A move swaps player y in for x over
    a stretch where x is on and y is off (all of it, or part sharing one end);
    moves that leave a tick unable to cover 1–5 are skipped. 3 restarts, best kept.
-   Cost (`WEIGHTS`, tuned on sample rosters; see the commit history for numbers):
+   Cost (`WEIGHTS`, hand-tuned on two sample rosters of 10 and 13 players):
    squared minutes off target + `spread` (running total vs even pace) +
    `bench` (squared length of each sit) + `event` per stoppage + `gap` when
    two stoppages (or a period start and a stoppage) are closer than min stint.
