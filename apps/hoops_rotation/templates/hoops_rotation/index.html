@@ -47,8 +47,11 @@
                     start and close. Mark who's not at the game as Out.
                 </li>
                 <li>
-                    <strong>Percents are scaled to 500%</strong>, because five players are on
-                    the floor. Nobody goes over 100%.
+                    <strong>A player's % is the share of the game clock they should be on the
+                    floor.</strong> 75% of a 32-minute game is about 24 minutes. Five players are
+                    on the floor, so the team's percents should add up to 500%. If they don't,
+                    everyone is scaled by the same amount to fill the floor minutes, and nobody
+                    goes over 100%. The minutes next to each % show the result.
                 </li>
                 <li>
                     <strong>Make rotation.</strong> At every moment there's exactly one player
@@ -544,7 +547,8 @@
                 el("div", { className: "player-top" }, [
                     here,
                     name,
-                    el("span", { className: "pct-wrap" }, [pct, "%"]),
+                    el("span", { className: "pct-wrap" }, [pct, "%",
+                        el("span", { className: "player-mins", attrs: { "data-id": p.id } })]),
                     el("button", {
                         className: "btn btn-text btn-remove", type: "button", title: "Remove player",
                         onclick: function() { removePlayer(p.id); }
@@ -558,7 +562,6 @@
 
     function renderSummary() {
         const here = roster.filter(function(p) { return p.present; });
-        const total = here.reduce(function(a, p) { return a + p.pct; }, 0);
         const starters = here.filter(function(p) { return p.starter; }).length;
         const closers = here.filter(function(p) { return p.closer; }).length;
 
@@ -569,13 +572,66 @@
         for (let pos = 1; pos <= NPOS; pos++) {
             posCounts.push(pos + ":" + here.filter(function(p) { return p.positions.indexOf(pos) !== -1; }).length);
         }
+        // Minutes each player's % works out to, after scaling, next to their % box.
+        const scaling = scalingInfo(here, settings);
+        document.querySelectorAll(".player-mins").forEach(function(node) {
+            const m = scaling.minutes[node.getAttribute("data-id")];
+            node.textContent = m == null ? "" : "≈ " + fmtClock(m);
+        });
+
         const box = document.getElementById("roster-summary");
         box.innerHTML = "";
         box.appendChild(item("Here", String(here.length), here.length < NPOS));
-        box.appendChild(item("Total", total + "%" + (here.length && total !== 500 ? " → scaled to 500%" : ""), false));
+        if (here.length) {
+            box.appendChild(el("span", { className: "summary-line" }, [scaling.text]));
+        }
         box.appendChild(item("Starters", starters + "/5", starters !== NPOS));
         box.appendChild(item("Closers", closers + "/5", closers !== NPOS));
         box.appendChild(item("Can play", posCounts.join("  "), false));
+    }
+
+
+    // scalingInfo(players, settings) — what the percents ask for vs the minutes
+    // there are. A player's % is the share of the game clock they should play;
+    // the floor holds 5 × game length player-minutes. Returns
+    //   { minutes: { id: scaled minutes }, scaled: bool, text: one-line summary }
+    function scalingInfo(players, st) {
+        const game = st.periods * st.periodMinutes;
+        const floor = NPOS * game;
+        const out = { minutes: {}, scaled: false, text: "" };
+        if (!players.length) return out;
+        const shares = RotationEngine.scaleShares(players.map(function(p) { return p.pct; }));
+        players.forEach(function(p, i) { out.minutes[p.id] = shares[i] * game; });
+
+        const total = players.reduce(function(a, p) { return a + p.pct; }, 0);
+        const asked = total / 100 * game;
+        // Would anyone go over 100% under plain proportional scaling?
+        const capped = total > 0 && players.some(function(p) { return p.pct * NPOS / total > 1 + 1e-9; });
+        let text = "Asking for " + fmtClock(asked) + " of " + fmtClock(floor) + " floor minutes (" +
+            NPOS + " on the floor × " + fmtClock(game) + ")";
+        if (total === 0) {
+            text += ", so everyone gets an equal share.";
+            out.scaled = true;
+        } else if (Math.abs(asked - floor) < 1e-6) {
+            text += ". No scaling needed.";
+        } else {
+            // The factor actually applied: the same for everyone below 100%
+            // (players held at 100% are left out of it).
+            let factor = floor / asked;
+            players.forEach(function(p, i) {
+                if (p.pct > 0 && shares[i] < 1 - 1e-9) factor = shares[i] / (p.pct / 100);
+            });
+            const change = Math.round(Math.abs(factor - 1) * 100);
+            const dir = factor > 1 ? "up" : "down";
+            const who = capped ? "everyone below 100%" : "everyone";
+            text += change === 0
+                ? ", so " + who + " is scaled " + dir + " slightly."
+                : ", so " + who + " is scaled " + dir + " " + change + "%.";
+            if (capped) text += " Nobody goes over 100%.";
+            out.scaled = true;
+        }
+        out.text = text;
+        return out;
     }
 
 
@@ -637,11 +693,10 @@
             }
             showErrors("make-errors", null, []);
 
-            const total = players.reduce(function(a, p) { return a + p.pct; }, 0);
+            const scaling = scalingInfo(players, st);
             const warnings = result.warnings.slice();
-            if (total !== 500) {
-                warnings.unshift("The percents added up to " + total + "%, so they were scaled to 500%. " +
-                    "The Target column shows each player's scaled share.");
+            if (scaling.scaled) {
+                warnings.unshift(scaling.text + " The Target column shows each player's scaled time.");
             }
             plan = {
                 label: document.getElementById("game-label").value.trim(),

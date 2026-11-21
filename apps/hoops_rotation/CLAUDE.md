@@ -39,6 +39,14 @@ whenever they can (tests: always met so far):
   in a row, and with 3+ periods nobody misses more than one whole period.
   Players at 0% are exempt
 
+## What a percent means
+A player's % is the share of the **game clock** they should be on the floor
+(75% of 32:00 ≈ 24:00). The floor holds 5 × game length player-minutes, so the
+team should total 500%. Otherwise everyone below 100% is scaled by one common
+factor to fill the floor minutes (`RotationEngine.scaleShares`). The roster shows
+"≈ m:ss" per player after scaling and a summary line: "Asking for 140:48 of
+160:00 floor minutes … scaled up 25%" (`scalingInfo` in the page).
+
 ## Engine (`RotationEngine.plan({ players, ticks, tickMinutes, periodTicks, maxSubs, minStint, closeTicks, seed })`)
 1. **Targets**: percents scaled by one common factor so the total is 500%,
    capped at 100% each (water-filling).
