@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Laura's Pies 🥧</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #fff5e6;
+    --cream-dark: #f7e3c4;
+    --brown: #7a4a2a;
+    --brown-dark: #4e2e18;
+    --pink: #f27da6;
+    --pink-dark: #d65a87;
+    --green: #3fae5a;
+    --red: #e0443e;
+    --gold: #f5b82e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--cream);
+    background-image: repeating-linear-gradient(45deg, rgba(242,125,166,0.06) 0 20px, transparent 20px 40px);
+    color: var(--brown-dark);
+    font-family: 'Baloo 2', 'Trebuchet MS', cursive, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .screen { display: none; max-width: 520px; margin: 0 auto; padding: 16px; min-height: 100%; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ---------- Title screen ---------- */
+  .awning {
+    height: 46px; border-radius: 0 0 18px 18px;
+    background: repeating-linear-gradient(90deg, var(--pink) 0 40px, #fff 40px 80px);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.08);
+  }
+  h1 { font-size: 56px; line-height: 1; margin: 24px 0 4px; text-align: center; color: var(--pink-dark); text-shadow: 3px 3px 0 #fff; }
+  .tagline { text-align: center; font-size: 20px; margin: 0 0 12px; }
+  .laura { font-size: 90px; text-align: center; line-height: 1.1; }
+  .how { background: #fff; border-radius: 18px; padding: 12px 18px; font-size: 19px; line-height: 1.4; border: 3px solid var(--cream-dark); }
+  .how ol { margin: 4px 0; padding-left: 24px; }
+  .best { text-align: center; font-size: 20px; margin: 10px 0; min-height: 30px; }
+
+  .btn {
+    font-family: inherit; font-weight: 800; font-size: 28px;
+    border: none; border-radius: 20px; padding: 14px 20px; cursor: pointer;
+    color: #fff; background: var(--pink); box-shadow: 0 6px 0 var(--pink-dark);
+    transition: transform 0.05s;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--pink-dark); }
+  .btn.big { width: 100%; margin-top: 12px; font-size: 34px; }
+  .btn.serve { background: var(--green); box-shadow: 0 6px 0 #2b8442; width: 100%; font-size: 30px; }
+  .btn.serve:active { box-shadow: 0 2px 0 #2b8442; }
+  .btn.serve:disabled { background: #bbb; box-shadow: 0 6px 0 #999; cursor: default; }
+
+  /* ---------- Game screen ---------- */
+  .hud { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .hud-box { background: #fff; border-radius: 16px; padding: 4px 14px; font-size: 26px; font-weight: 800; border: 3px solid var(--cream-dark); white-space: nowrap; }
+  .timer.hurry { color: #fff; background: var(--red); border-color: var(--red); animation: pulse 0.5s infinite alternate; }
+  @keyframes pulse { to { transform: scale(1.08); } }
+
+  .hud-box.shopcount { display: flex; align-items: center; gap: 4px; padding: 2px 12px; }
+  .hud-box.shopcount svg { width: 36px; height: 36px; }
+  .coinbar { margin-top: 8px; background: #fff; border: 3px solid var(--cream-dark); border-radius: 14px; height: 28px; position: relative; overflow: hidden; }
+  .coinbar-fill { height: 100%; width: 0%; background: var(--gold); transition: width 0.3s; }
+  .coinbar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; }
+  .end-shops svg { width: 60px; height: 60px; }
+
+  /* ---------- The shop room ---------- */
+  .scene { position: relative; height: 250px; margin-top: 8px; overflow: hidden;
+    border: 4px solid var(--brown-dark); border-bottom: none; border-radius: 18px 18px 0 0; }
+  .wall { position: absolute; left: 0; right: 0; top: 0; height: 150px;
+    background: repeating-linear-gradient(90deg, #fde3ec 0 18px, #fff3f7 18px 36px); }
+  .wall-awning { position: absolute; left: 0; right: 0; top: 0; height: 22px;
+    background: repeating-linear-gradient(90deg, var(--pink) 0 24px, #fff 24px 48px);
+    border-bottom: 3px solid var(--pink-dark); }
+  .floor { position: absolute; left: 0; right: 0; top: 150px; bottom: 0; border-top: 5px solid #b98a5c;
+    background: conic-gradient(#e6cfb2 25%, #fff7ea 0 50%, #e6cfb2 0 75%, #fff7ea 0) 0 0 / 30px 30px; }
+  .door { position: absolute; left: 10px; top: 44px; width: 58px; height: 106px; background: #a8743a;
+    border: 4px solid var(--brown-dark); border-bottom: none; border-radius: 10px 10px 0 0; }
+  .door::before { content: ""; position: absolute; left: 9px; right: 9px; top: 9px; height: 36px;
+    background: #bfe3f5; border: 3px solid var(--brown-dark); border-radius: 6px; }
+  .door::after { content: ""; position: absolute; right: 7px; top: 58px; width: 8px; height: 8px;
+    background: var(--gold); border-radius: 50%; }
+  .door-sign { position: absolute; left: 4px; right: 4px; top: 70px; font-size: 10px; font-weight: 800;
+    text-align: center; color: #fff; background: var(--pink-dark); border-radius: 4px; line-height: 1.4; z-index: 1; }
+  .case { position: absolute; right: 10px; top: 38px; width: 98px; padding: 2px 4px;
+    background: rgba(191,227,245,0.75); border: 4px solid var(--brown-dark); border-radius: 8px; text-align: center; }
+  .case-shelf { font-size: 20px; line-height: 1.2; border-bottom: 4px solid #a8743a; }
+  .case-label { font-size: 11px; font-weight: 800; color: var(--brown-dark); }
+  .table { position: absolute; top: 156px; width: 100px; height: 80px; }
+  .table.left { left: 6px; }
+  .table.right { right: 6px; }
+  .person { position: absolute; line-height: 1; transform: translateX(-50%); z-index: 2;
+    transition: left 0.4s ease-in-out, top 0.4s ease-in-out, font-size 0.4s, opacity 0.4s; }
+  .bubble {
+    position: absolute; top: 32px; left: 78px; right: 116px; z-index: 3;
+    background: #fff; border-radius: 16px; padding: 6px 10px; font-size: 17px; font-weight: 700;
+    border: 3px solid var(--brown); line-height: 1.2;
+  }
+  .bubble::after {
+    content: ""; position: absolute; left: 55%; bottom: -17px;
+    border: 8px solid transparent; border-top: 10px solid var(--brown);
+  }
+  .bubble .order-icons { display: flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 16px; }
+  .bubble .order-icons svg { width: 36px; height: 36px; }
+  .bubble.happy { border-color: var(--green); background: #e7f8eb; }
+  .bubble.happy::after { border-top-color: var(--green); }
+  .bubble.grumpy { border-color: var(--red); background: #fde8e7; }
+  .bubble.grumpy::after { border-top-color: var(--red); }
+
+  @media (max-width: 380px) {
+    .case { width: 80px; right: 8px; }
+    .case-shelf { font-size: 15px; }
+    .bubble { left: 74px; right: 94px; font-size: 15px; }
+  }
+
+  /* ---------- The wooden counter ---------- */
+  .counter-top { position: relative; z-index: 4; height: 120px; display: flex; align-items: flex-end; justify-content: center;
+    background: linear-gradient(#e4b57c, #d29e62); border: 4px solid var(--brown-dark); border-bottom: none;
+    border-top: 8px solid #8a5a33; margin-top: -14px; }
+  .pie-view { flex: 1; height: 100%; display: flex; align-items: center; justify-content: center; }
+  .pie-view .in-oven { font-size: 17px; font-weight: 800; color: var(--brown-dark); text-align: center; }
+  .oven { width: 128px; height: 104px; margin: 0 10px 6px 0; flex-shrink: 0; cursor: pointer; position: relative;
+    background: linear-gradient(#6b6f75, #4a4d52); border: 4px solid #2c2e31; border-radius: 10px;
+    display: flex; flex-direction: column; align-items: center; padding: 4px; box-shadow: 0 4px 0 rgba(0,0,0,0.3); }
+  .oven:active { transform: translateY(2px); }
+  .oven-knobs { display: flex; gap: 8px; height: 10px; }
+  .oven-knobs i { width: 9px; height: 9px; border-radius: 50%; background: #c9ccd0; display: block; }
+  .oven-window { width: 100%; height: 36px; margin-top: 3px; border-radius: 6px; background: #1d1e20;
+    border: 3px solid #2c2e31; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+  .oven.on .oven-window { background: radial-gradient(ellipse at 50% 70%, #ffd25a 0, #ff8a1f 55%, #b8400e 100%); }
+  .oven-label { color: #fff; font-size: 12px; font-weight: 800; line-height: 1.15; text-align: center; margin-top: 3px; }
+  .oven.ready { animation: nudge 0.8s infinite alternate; }
+  @keyframes nudge { to { box-shadow: 0 0 0 4px var(--gold), 0 4px 0 rgba(0,0,0,0.3); } }
+  .bake-meter { position: absolute; left: 6px; right: 6px; bottom: 5px; height: 12px; border-radius: 6px;
+    border: 2px solid #1d1e20; overflow: hidden; display: none;
+    background: linear-gradient(90deg, #f1dcb8 0 50%, #3fae5a 50% 85%, #222 85%); }
+  .oven.on .bake-meter { display: block; }
+  .oven.on .oven-label { visibility: hidden; }
+  .bake-marker { position: absolute; top: -2px; bottom: -2px; width: 4px; left: 0; background: #fff; box-shadow: 0 0 0 1px #000; }
+  .choice:disabled { opacity: 0.45; cursor: default; }
+  .pie-view svg { width: 150px; height: 106px; }
+  .pie-view .empty { font-size: 20px; font-weight: 800; color: var(--brown-dark); opacity: 0.6; }
+  .counter-front { padding: 6px 10px 14px; border: 4px solid var(--brown-dark); border-top: 6px solid #5c381d;
+    border-radius: 0 0 18px 18px;
+    background: repeating-linear-gradient(90deg, #8a5a33 0 calc(25% - 4px), #6b4325 calc(25% - 4px) 25%); }
+  .step-label { color: #fff; font-weight: 800; font-size: 17px; margin: 4px 2px 2px; text-shadow: 1px 1px 0 var(--brown-dark); }
+  .choices { display: grid; gap: 8px; }
+  .choices.three { grid-template-columns: repeat(3, 1fr); }
+  .choices.two { grid-template-columns: repeat(2, 1fr); }
+  .choice {
+    font-family: inherit; font-weight: 800; font-size: 16px; color: var(--brown-dark); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 82px; border: none; border-radius: 50%; padding: 0;
+    background: radial-gradient(ellipse at 50% 45%, #fff 0 55%, #efe3d1 56% 64%, #fffaf2 65%);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.25); transition: transform 0.08s;
+  }
+  .choices.two .choice { border-radius: 14px 14px 40px 40px;
+    background: radial-gradient(ellipse at 50% 30%, #fff 0 45%, #dcefff 46%); }
+  .choice .emo { font-size: 34px; line-height: 1.05; }
+  .choice svg { width: 40px; height: 40px; }
+  .choice.picked { box-shadow: 0 0 0 5px var(--gold), 0 4px 0 rgba(0,0,0,0.25); transform: scale(1.05); }
+  .serve-row { margin-top: 12px; }
+
+  .flash { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); font-size: 40px; font-weight: 800;
+    pointer-events: none; opacity: 0; text-align: center; text-shadow: 2px 2px 0 #fff; white-space: nowrap; }
+  .flash.show { animation: flash 1.1s ease-out; }
+  @keyframes flash {
+    0% { opacity: 0; transform: translate(-50%, -30%) scale(0.6); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    70% { opacity: 1; transform: translate(-50%, -60%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
+  }
+
+  /* ---------- End screen ---------- */
+  .end-big { font-size: 110px; text-align: center; line-height: 1.1; margin-top: 20px; }
+  .end-title { font-size: 46px; text-align: center; margin: 4px 0; color: var(--pink-dark); }
+  .end-text { font-size: 24px; text-align: center; margin: 6px 0; }
+  .end-shops { font-size: 40px; text-align: center; margin: 8px 0; word-wrap: break-word; }
+  .newbest { font-size: 28px; text-align: center; color: var(--green); font-weight: 800; }
+</style>
+</head>
+<body>
+
+<!-- ===================== TITLE ===================== -->
+<div class="screen active" id="title-screen">
+  <div class="awning"></div>
+  <h1>Laura's Pies</h1>
+  <p class="tagline">The yummiest pie shop in town!</p>
+  <div class="laura">👩‍🍳🥧</div>
+  <div class="how">
+    <ol>
+      <li>Read what the customer wants.</li>
+      <li>Pick the <b>pie</b>.</li>
+      <li>Tap the <b>oven</b> to bake it. Tap again to take it out when the bar is <b style="color:#3fae5a">green</b>. Don't burn it!</li>
+      <li>Pick the <b>topping</b>.</li>
+      <li>Press <b>Serve!</b> Each right pie = <b>5 coins</b> 🪙</li>
+      <li><b>20 coins</b> opens a new pie shop!</li>
+    </ol>
+    You have <b>40 seconds</b>. Open as many shops as you can!
+  </div>
+  <div class="best" id="best-line"></div>
+  <button class="btn big" id="start-btn">Open the shop!</button>
+</div>
+
+<!-- ===================== GAME ===================== -->
+<div class="screen" id="game-screen">
+  <div class="hud">
+    <div class="hud-box timer" id="timer">⏰ 40</div>
+    <div class="hud-box shopcount" id="shops"></div>
+    <div class="hud-box" id="coins">🪙 0</div>
+  </div>
+  <div class="coinbar">
+    <div class="coinbar-fill" id="coinbar-fill"></div>
+    <div class="coinbar-text" id="coinbar-text">0 / 20 coins to a new shop</div>
+  </div>
+
+  <div class="scene" id="scene">
+    <div class="wall"></div>
+    <div class="wall-awning"></div>
+    <div class="floor"></div>
+    <div class="door"><div class="door-sign">OPEN</div></div>
+    <div class="case">
+      <div class="case-shelf">🥧🥧🥧</div>
+      <div class="case-shelf">🥧🥧🥧</div>
+      <div class="case-label">Laura's Pies</div>
+    </div>
+    <div class="table left" id="table-left"></div>
+    <div class="table right" id="table-right"></div>
+    <div class="bubble" id="bubble"></div>
+  </div>
+
+  <div class="counter-top">
+    <div class="pie-view" id="pie-view"></div>
+    <div class="oven" id="oven">
+      <div class="oven-knobs"><i></i><i></i><i></i></div>
+      <div class="oven-window" id="oven-window"></div>
+      <div class="oven-label" id="oven-label"></div>
+      <div class="bake-meter"><div class="bake-marker" id="bake-marker"></div></div>
+    </div>
+  </div>
+  <div class="counter-front">
+    <div class="step-label">1. Pick the pie</div>
+    <div class="choices three" id="pie-choices"></div>
+    <div class="step-label">3. Pick the topping</div>
+    <div class="choices two" id="topping-choices"></div>
+    <div class="serve-row"><button class="btn serve" id="serve-btn" disabled>Serve! 🛎️</button></div>
+  </div>
+</div>
+
+<!-- ===================== END ===================== -->
+<div class="screen" id="end-screen">
+  <div class="awning"></div>
+  <div class="end-big">⏰</div>
+  <div class="end-title">Time's up!</div>
+  <div class="end-text" id="end-text"></div>
+  <div class="end-shops" id="end-shops"></div>
+  <div class="end-text" id="end-stats"></div>
+  <div class="newbest" id="newbest"></div>
+  <button class="btn big" id="again-btn">Play again!</button>
+</div>
+
+<div class="flash" id="flash"></div>
+
+<script>
+// ============================================================
+//  SETTINGS. Change these numbers to change the game!
+// ============================================================
+const GAME_SECONDS   = 40;  // how long you have
+const COINS_PER_PIE  = 5;   // coins for each right pie
+const COINS_PER_SHOP = 20;  // coins needed to open a new shop
+const BAKE_MS        = 2000;  // how long until the bar is full (then it's burnt!)
+const GREEN_FROM     = 0.50;  // the green "just right" part of the bar starts here...
+const GREEN_TO       = 0.85;  // ...and ends here
+
+const PIES = [
+  { id: "apple",   name: "Apple",   emoji: "🍎", filling: "#e9b54c", raw: "#f3df9e", lattice: true },
+  { id: "pumpkin", name: "Pumpkin", emoji: "🎃", filling: "#d9742a", raw: "#f1b67e", lattice: false },
+  { id: "peach",   name: "Peach",   emoji: "🍑", filling: "#f7a66a", raw: "#fad3ad", lattice: true },
+];
+const TOPPINGS = [
+  { id: "cream",    name: "Whipped cream" },
+  { id: "icecream", name: "Ice cream" },
+];
+const CUSTOMERS = ["🧒", "👧", "👦", "👩", "👨", "👵", "👴", "🧑", "👱‍♀️", "👩‍🦰", "🧔", "👮", "🧑‍🚒", "🤴", "👸"];
+const HAPPY_WORDS = ["Yum!", "Thank you!", "Delicious!", "Perfect!", "Wow!"];
+
+// ============================================================
+//  DRAWINGS (little pictures made with SVG)
+// ============================================================
+function toppingSvg(id, x, y, s) {
+  // draws a topping centred at x,y with size s
+  if (id === "cream") {
+    return `<g fill="#fffdf8" stroke="#e8dcc8" stroke-width="2">
+      <ellipse cx="${x}" cy="${y + s*0.25}" rx="${s*0.55}" ry="${s*0.28}"/>
+      <ellipse cx="${x}" cy="${y}" rx="${s*0.4}" ry="${s*0.24}"/>
+      <ellipse cx="${x}" cy="${y - s*0.22}" rx="${s*0.24}" ry="${s*0.18}"/>
+      <path d="M${x} ${y - s*0.48} q${s*0.1} ${s*0.12} 0 ${s*0.16}" fill="#fffdf8"/>
+    </g>`;
+  }
+  // ice cream scoop
+  return `<g>
+    <circle cx="${x}" cy="${y}" r="${s*0.45}" fill="#fbeed3" stroke="#e3cfa6" stroke-width="2"/>
+    <path d="M${x - s*0.45} ${y + s*0.05} q${s*0.15} ${s*0.22} ${s*0.3} 0 q${s*0.15} ${s*0.22} ${s*0.3} 0 q${s*0.15} ${s*0.22} ${s*0.3} 0" fill="#fbeed3" stroke="#e3cfa6" stroke-width="2"/>
+    <circle cx="${x - s*0.15}" cy="${y - s*0.15}" r="${s*0.08}" fill="#fff" opacity="0.8"/>
+  </g>`;
+}
+
+function pieSvg(pie, toppingId, bake) {
+  // a pie seen from the side-ish: tin, crust, filling, optional topping
+  // bake is "perfect", "burnt", or anything else = raw (pale)
+  let crust = "#f1dcb8", crustLine = "#d8bf95", filling = pie.raw, latticeColor = "#ead0a2";
+  if (bake === "perfect") { crust = "#d9a35b"; crustLine = "#a8743a"; filling = pie.filling; latticeColor = "#c98b45"; }
+  if (bake === "burnt")   { crust = "#3f2a1c"; crustLine = "#1e120a"; filling = "#4a2e1c"; latticeColor = "#2b1a0f"; }
+  let lattice = "";
+  if (pie.lattice) {
+    lattice = `<g stroke="${latticeColor}" stroke-width="7" stroke-linecap="round" opacity="0.95">
+      <line x1="55" y1="62" x2="115" y2="62"/><line x1="45" y1="74" x2="125" y2="74"/>
+      <line x1="70" y1="54" x2="70" y2="86"/><line x1="100" y1="54" x2="100" y2="86"/>
+    </g>`;
+  }
+  const smoke = bake === "burnt" ? `<g fill="#888" opacity="0.6">
+      <circle cx="60" cy="30" r="10"/><circle cx="70" cy="18" r="8"/><circle cx="110" cy="28" r="9"/><circle cx="102" cy="15" r="7"/>
+    </g>` : "";
+  const top = toppingId ? toppingSvg(toppingId, 85, 52, 50) : "";
+  return `<svg viewBox="0 0 170 120" xmlns="http://www.w3.org/2000/svg">
+    ${smoke}
+    <path d="M18 72 L32 104 Q85 116 138 104 L152 72 Z" fill="#b9c0c7" stroke="#8d959d" stroke-width="2"/>
+    <ellipse cx="85" cy="72" rx="68" ry="24" fill="${crust}" stroke="${crustLine}" stroke-width="3"/>
+    <ellipse cx="85" cy="70" rx="56" ry="18" fill="${filling}"/>
+    ${lattice}
+    ${top}
+  </svg>`;
+}
+
+function shopSvg() {
+  // a little pie shop with a pink striped awning
+  return `<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+    <rect x="8" y="22" width="44" height="34" rx="2" fill="#fff5e6" stroke="#7a4a2a" stroke-width="2"/>
+    <rect x="24" y="38" width="12" height="18" fill="#a8743a"/>
+    <rect x="12" y="36" width="9" height="9" fill="#bfe3f5" stroke="#7a4a2a" stroke-width="1.5"/>
+    <rect x="39" y="36" width="9" height="9" fill="#bfe3f5" stroke="#7a4a2a" stroke-width="1.5"/>
+    <path d="M4 14 H56 L54 26 H6 Z" fill="#fff" stroke="#d65a87" stroke-width="2"/>
+    <path d="M10.5 14 H17 L16 26 H9.5 Z M23.5 14 H30 L30 26 H23 Z M36.5 14 H43 L44 26 H37 Z M49.5 14 H56 L54 26 H50.5 Z" fill="#f27da6"/>
+    <rect x="18" y="4" width="24" height="10" rx="3" fill="#7a4a2a"/>
+    <text x="30" y="12" font-size="8" text-anchor="middle">🥧</text>
+  </svg>`;
+}
+
+function tableSvg() {
+  // a round table with a pink tablecloth and a chair on each side
+  const chair = (x, flip) => `<g fill="#a8743a" stroke="#4e2e18" stroke-width="2">
+      <rect x="${flip ? x + 14 : x}" y="18" width="6" height="38" rx="2"/>
+      <rect x="${x}" y="50" width="20" height="6" rx="2"/>
+      <rect x="${x + 1}" y="56" width="4" height="22"/><rect x="${x + 15}" y="56" width="4" height="22"/>
+    </g>`;
+  return `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg">
+    ${chair(4, false)}${chair(76, true)}
+    <rect x="46" y="44" width="8" height="30" fill="#7a4a2a"/>
+    <ellipse cx="50" cy="76" rx="14" ry="3" fill="#7a4a2a"/>
+    <path d="M24 38 Q50 30 76 38 L74 50 Q50 56 26 50 Z" fill="#f27da6" stroke="#d65a87" stroke-width="2"/>
+    <ellipse cx="50" cy="38" rx="26" ry="7" fill="#fff" stroke="#d65a87" stroke-width="2"/>
+    <ellipse cx="50" cy="36" rx="9" ry="3.5" fill="#d9a35b" stroke="#a8743a" stroke-width="1.5"/>
+  </svg>`;
+}
+
+function smallToppingSvg(id) {
+  return `<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">${toppingSvg(id, 30, 34, 46)}</svg>`;
+}
+
+// ============================================================
+//  SOUNDS (beeps made by the computer, no sound files)
+// ============================================================
+let audio = null;
+function beep(freq, len, type = "sine", when = 0, vol = 0.15) {
+  if (!audio) return;
+  const t = audio.currentTime + when;
+  const o = audio.createOscillator();
+  const g = audio.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + len);
+  o.connect(g); g.connect(audio.destination);
+  o.start(t); o.stop(t + len);
+}
+const sounds = {
+  click() { beep(600, 0.06, "triangle"); },
+  right() { beep(660, 0.1, "triangle"); beep(880, 0.15, "triangle", 0.08); },
+  wrong() { beep(200, 0.25, "sawtooth", 0, 0.1); },
+  shop()  { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.18, "triangle", i * 0.1)); },
+  tick()  { beep(1000, 0.04, "square", 0, 0.05); },
+  end()   { [784, 659, 523].forEach((f, i) => beep(f, 0.25, "triangle", i * 0.18)); },
+};
+
+// ============================================================
+//  SAVING YOUR BEST SCORE
+// ============================================================
+const BEST_KEY = "laurasPies.best.v1";
+function loadBest() { try { return parseInt(localStorage.getItem(BEST_KEY), 10) || 0; } catch (e) { return 0; } }
+function saveBest(n) { try { localStorage.setItem(BEST_KEY, String(n)); } catch (e) {} }
+
+// ============================================================
+//  THE GAME
+// ============================================================
+const $ = (id) => document.getElementById(id);
+let state = null;
+let timerHandle = null;
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+function showBestLine() {
+  const best = loadBest();
+  $("best-line").textContent = best > 0 ? `🏆 Your best: ${best} new shop${best === 1 ? "" : "s"}` : "";
+}
+
+function buildButtons() {
+  $("pie-choices").innerHTML = PIES.map(p =>
+    `<button class="choice" data-pie="${p.id}"><span class="emo">${p.emoji}</span>${p.name}</button>`).join("");
+  $("topping-choices").innerHTML = TOPPINGS.map(t =>
+    `<button class="choice" data-topping="${t.id}">${smallToppingSvg(t.id)}${t.name}</button>`).join("");
+  document.querySelectorAll("[data-pie]").forEach(b => b.addEventListener("click", () => pickPie(b.dataset.pie)));
+  document.querySelectorAll("[data-topping]").forEach(b => b.addEventListener("click", () => pickTopping(b.dataset.topping)));
+}
+
+function startGame() {
+  if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (audio && audio.state === "suspended") audio.resume();
+  state = {
+    timeLeft: GAME_SECONDS,
+    coins: 0,        // coins toward the next shop
+    newShops: 0,     // shops opened (the score)
+    served: 0,
+    mistakes: 0,
+    order: null,
+    pickedPie: null,
+    pickedTopping: null,
+    bake: null,      // null = not baked yet, "baking", then "raw" / "perfect" / "burnt"
+    bakeStart: 0,
+    busy: false,     // true for a moment while a customer leaves
+    lastKey: null,
+  };
+  showScreen("game-screen");
+  clearShop();
+  updateHud();
+  nextCustomer();
+  clearInterval(timerHandle);
+  timerHandle = setInterval(tick, 1000);
+}
+
+function tick() {
+  state.timeLeft--;
+  updateHud();
+  if (state.timeLeft <= 5 && state.timeLeft > 0) sounds.tick();
+  if (state.timeLeft <= 0) endGame();
+}
+
+function updateHud() {
+  $("timer").textContent = `⏰ ${Math.max(0, state.timeLeft)}`;
+  $("timer").classList.toggle("hurry", state.timeLeft <= 10);
+  $("coins").textContent = `🪙 ${state.coins}`;
+  $("coinbar-fill").style.width = `${(state.coins / COINS_PER_SHOP) * 100}%`;
+  $("coinbar-text").textContent = `${state.coins} / ${COINS_PER_SHOP} coins to a new shop`;
+  // the first shop is where Laura works; the others are the new ones
+  $("shops").innerHTML = `${shopSvg()} ${1 + state.newShops}`;
+}
+
+// ---------- people walking around the shop ----------
+const DOOR = { x: 39, y: 78, size: 44 };
+function counterSpot() { return { x: $("scene").clientWidth / 2, y: 146, size: 70 }; }
+function seatSpots() {
+  const w = $("scene").clientWidth;
+  // the 4 chairs: two at the left table, two at the right table
+  return [ { x: 20, y: 172 }, { x: 92, y: 172 }, { x: w - 92, y: 172 }, { x: w - 20, y: 172 } ]
+    .map(s => ({ ...s, size: 30 }));
+}
+function placePerson(el, spot) {
+  el.style.left = spot.x + "px";
+  el.style.top = spot.y + "px";
+  el.style.fontSize = spot.size + "px";
+}
+function makePerson(face) {
+  const el = document.createElement("div");
+  el.className = "person";
+  el.textContent = face;
+  placePerson(el, DOOR);
+  el.style.opacity = "0";
+  $("scene").appendChild(el);
+  void el.offsetWidth;  // let the browser notice the start spot before we move it
+  return el;
+}
+function walkOut(el) {
+  placePerson(el, DOOR);
+  el.style.opacity = "0";
+  setTimeout(() => el.remove(), 450);
+}
+function clearShop() {
+  document.querySelectorAll("#scene .person").forEach(el => el.remove());
+  state.diners = [null, null, null, null];
+  state.nextSeat = 0;
+  state.customerEl = null;
+}
+
+function nextCustomer() {
+  // pick an order that isn't the same as the last one
+  let pie, topping, key;
+  do {
+    pie = PIES[Math.floor(Math.random() * PIES.length)];
+    topping = TOPPINGS[Math.floor(Math.random() * TOPPINGS.length)];
+    key = pie.id + "+" + topping.id;
+  } while (key === state.lastKey);
+  state.lastKey = key;
+  state.order = { pie, topping };
+  state.pickedPie = null;
+  state.pickedTopping = null;
+  state.bake = null;
+  state.busy = false;
+
+  const el = makePerson(CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)]);
+  placePerson(el, counterSpot());
+  el.style.opacity = "1";
+  state.customerEl = el;
+
+  const b = $("bubble");
+  b.className = "bubble";
+  b.innerHTML = `${pie.name} pie with ${topping.name.toLowerCase()}!
+    <div class="order-icons"><span style="font-size:34px">${pie.emoji}</span> + ${smallToppingSvg(topping.id)}</div>`;
+  drawCounter();
+}
+
+function pickPie(id) {
+  if (state.busy || state.bake === "baking") return;
+  // picking a pie always starts a brand new (raw) pie
+  state.pickedPie = id;
+  state.bake = null;
+  state.pickedTopping = null;
+  sounds.click();
+  drawCounter();
+}
+function pickTopping(id) {
+  if (state.busy || !isBaked()) return;
+  state.pickedTopping = id;
+  sounds.click();
+  drawCounter();
+}
+function isBaked() { return ["raw", "perfect", "burnt"].includes(state.bake); }
+
+// ---------- the oven ----------
+let bakeFrame = null;
+function tapOven() {
+  if (state.busy) return;
+  if (state.bake === null && state.pickedPie) {
+    state.bake = "baking";
+    state.bakeStart = performance.now();
+    sounds.click();
+    drawCounter();
+    bakeFrame = requestAnimationFrame(bakeLoop);
+  } else if (state.bake === "baking") {
+    takeOut((performance.now() - state.bakeStart) / BAKE_MS);
+  }
+}
+function bakeLoop() {
+  if (state.bake !== "baking") return;
+  const amount = (performance.now() - state.bakeStart) / BAKE_MS;
+  if (amount >= 1) { takeOut(1); return; }  // left in too long: burnt!
+  $("bake-marker").style.left = `calc(${amount * 100}% - 2px)`;
+  bakeFrame = requestAnimationFrame(bakeLoop);
+}
+function takeOut(amount) {
+  cancelAnimationFrame(bakeFrame);
+  if (amount < GREEN_FROM) { state.bake = "raw"; sounds.wrong(); }
+  else if (amount <= GREEN_TO) { state.bake = "perfect"; sounds.right(); }
+  else { state.bake = "burnt"; sounds.wrong(); }
+  drawCounter();
+}
+
+function drawCounter() {
+  const pie = PIES.find(p => p.id === state.pickedPie);
+  const oven = $("oven");
+  if (!pie) {
+    $("pie-view").innerHTML = `<span class="empty">Pick a pie! 👇</span>`;
+  } else if (state.bake === "baking") {
+    $("pie-view").innerHTML = `<span class="in-oven">In the oven! 🔥<br>Watch the bar 👉</span>`;
+  } else {
+    $("pie-view").innerHTML = pieSvg(pie, state.pickedTopping, state.bake);
+  }
+  oven.classList.toggle("on", state.bake === "baking");
+  oven.classList.toggle("ready", !!pie && state.bake === null);
+  $("oven-window").textContent = state.bake === "baking" ? "🥧" : "";
+  $("bake-marker").style.left = "0";
+  let label = "Oven";
+  if (pie && state.bake === null) label = "2. Tap to bake! 🔥";
+  if (state.bake === "perfect") label = "Just right! ✨";
+  if (state.bake === "raw") label = "Too soon! Raw 🤢";
+  if (state.bake === "burnt") label = "Burnt! 💨 Pick a pie to redo";
+  $("oven-label").textContent = label;
+
+  document.querySelectorAll("[data-pie]").forEach(b => {
+    b.classList.toggle("picked", b.dataset.pie === state.pickedPie);
+    b.disabled = state.bake === "baking";
+  });
+  document.querySelectorAll("[data-topping]").forEach(b => {
+    b.classList.toggle("picked", b.dataset.topping === state.pickedTopping);
+    b.disabled = !isBaked();
+  });
+  $("serve-btn").disabled = !(isBaked() && state.pickedTopping);
+}
+
+function serve() {
+  if (state.busy || !isBaked() || !state.pickedTopping) return;
+  state.busy = true;
+  const rightOrder = state.pickedPie === state.order.pie.id && state.pickedTopping === state.order.topping.id;
+  const right = rightOrder && state.bake === "perfect";
+  const b = $("bubble");
+  if (right) {
+    state.served++;
+    state.coins += COINS_PER_PIE;
+    sitDown(state.customerEl);
+    b.className = "bubble happy";
+    b.textContent = HAPPY_WORDS[Math.floor(Math.random() * HAPPY_WORDS.length)] + " +" + COINS_PER_PIE + " 🪙";
+    if (state.coins >= COINS_PER_SHOP) {
+      state.coins -= COINS_PER_SHOP;
+      state.newShops++;
+      sounds.shop();
+      flash("🎉 New shop opened!", "#3fae5a");
+    } else {
+      sounds.right();
+    }
+  } else {
+    state.mistakes++;
+    const grumpy = state.customerEl;
+    grumpy.textContent = "😠";
+    setTimeout(() => walkOut(grumpy), 400);
+    b.className = "bubble grumpy";
+    b.textContent = !rightOrder ? "That's not what I asked for! Hmph!"
+      : state.bake === "burnt" ? "Eww! It's BURNT! Hmph!"
+      : "Yuck! It's not cooked! Hmph!";
+    sounds.wrong();
+  }
+  updateHud();
+  setTimeout(() => { if (state.timeLeft > 0) nextCustomer(); }, right ? 450 : 900);
+}
+
+function sitDown(el) {
+  // the happy customer takes the next chair; whoever was sitting there goes home
+  el.textContent = "😋";
+  const i = state.nextSeat;
+  state.nextSeat = (state.nextSeat + 1) % 4;
+  if (state.diners[i]) walkOut(state.diners[i]);
+  state.diners[i] = el;
+  setTimeout(() => placePerson(el, seatSpots()[i]), 150);
+}
+
+function flash(text, color) {
+  const f = $("flash");
+  f.textContent = text;
+  f.style.color = color;
+  f.classList.remove("show"); void f.offsetWidth; f.classList.add("show");
+}
+
+function endGame() {
+  clearInterval(timerHandle);
+  cancelAnimationFrame(bakeFrame);
+  state.busy = true;
+  sounds.end();
+  const n = state.newShops;
+  $("end-text").textContent = n === 0
+    ? "No new shops this time. You can do it, try again!"
+    : `Laura opened ${n} new pie shop${n === 1 ? "" : "s"}!`;
+  $("end-shops").innerHTML = shopSvg().repeat(n + 1);
+  $("end-stats").textContent = `Pies served: ${state.served}  ·  Grumpy customers: ${state.mistakes}`;
+  const best = loadBest();
+  if (n > best) {
+    saveBest(n);
+    $("newbest").textContent = "🏆 NEW BEST SCORE! 🏆";
+  } else {
+    $("newbest").textContent = best > 0 ? `Your best is ${best}.` : "";
+  }
+  showScreen("end-screen");
+}
+
+$("start-btn").addEventListener("click", startGame);
+$("again-btn").addEventListener("click", startGame);
+$("serve-btn").addEventListener("click", serve);
+$("oven").addEventListener("click", tapOven);
+document.querySelector(".bake-meter").style.background =
+  `linear-gradient(90deg, #f1dcb8 0 ${GREEN_FROM * 100}%, #3fae5a ${GREEN_FROM * 100}% ${GREEN_TO * 100}%, #222 ${GREEN_TO * 100}%)`;
+buildButtons();
+$("table-left").innerHTML = tableSvg();
+$("table-right").innerHTML = tableSvg();
+showBestLine();
+</script>
+</body>
+</html>
