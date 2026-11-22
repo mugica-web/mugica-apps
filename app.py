@@ -16,6 +16,7 @@ from apps.cook_timer import cook_timer
 from apps.taboo_jr import taboo_jr
 from apps.hoops_rotation import hoops_rotation
 from apps.lauras_pies import lauras_pies
+from apps.sarahs_pizza import sarahs_pizza
 
 # Load environment variables from .env file.
 # This reads the .env file and makes its values available via os.environ.
@@ -33,6 +34,7 @@ app.register_blueprint(cook_timer)
 app.register_blueprint(taboo_jr)
 app.register_blueprint(hoops_rotation)
 app.register_blueprint(lauras_pies)
+app.register_blueprint(sarahs_pizza)
 
 
 # Every page that signs in needs the Firebase API key. This makes it
