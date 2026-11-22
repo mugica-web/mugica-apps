@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Laura's Pies 🥧</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #fff5e6;
+    --cream-dark: #f7e3c4;
+    --brown: #7a4a2a;
+    --brown-dark: #4e2e18;
+    --pink: #f27da6;
+    --pink-dark: #d65a87;
+    --green: #3fae5a;
+    --red: #e0443e;
+    --gold: #f5b82e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--cream);
+    background-image: repeating-linear-gradient(45deg, rgba(242,125,166,0.06) 0 20px, transparent 20px 40px);
+    color: var(--brown-dark);
+    font-family: 'Baloo 2', 'Trebuchet MS', cursive, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .screen { display: none; max-width: 520px; margin: 0 auto; padding: 16px; min-height: 100%; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ---------- Title screen ---------- */
+  .awning {
+    height: 46px; border-radius: 0 0 18px 18px;
+    background: repeating-linear-gradient(90deg, var(--pink) 0 40px, #fff 40px 80px);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.08);
+  }
+  h1 { font-size: 56px; line-height: 1; margin: 24px 0 4px; text-align: center; color: var(--pink-dark); text-shadow: 3px 3px 0 #fff; }
+  .tagline { text-align: center; font-size: 20px; margin: 0 0 12px; }
+  .laura { font-size: 90px; text-align: center; line-height: 1.1; }
+  .how { background: #fff; border-radius: 18px; padding: 12px 18px; font-size: 19px; line-height: 1.4; border: 3px solid var(--cream-dark); }
+  .how ol { margin: 4px 0; padding-left: 24px; }
+  .best { text-align: center; font-size: 20px; margin: 10px 0; min-height: 30px; }
+
+  .btn {
+    font-family: inherit; font-weight: 800; font-size: 28px;
+    border: none; border-radius: 20px; padding: 14px 20px; cursor: pointer;
+    color: #fff; background: var(--pink); box-shadow: 0 6px 0 var(--pink-dark);
+    transition: transform 0.05s;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--pink-dark); }
+  .btn.big { width: 100%; margin-top: 12px; font-size: 34px; }
+  .btn.serve { background: var(--green); box-shadow: 0 6px 0 #2b8442; width: 100%; font-size: 30px; }
+  .btn.serve:active { box-shadow: 0 2px 0 #2b8442; }
+  .btn.serve:disabled { background: #bbb; box-shadow: 0 6px 0 #999; cursor: default; }
+
+  /* ---------- Game screen ---------- */
+  .hud { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .hud-box { background: #fff; border-radius: 16px; padding: 4px 14px; font-size: 26px; font-weight: 800; border: 3px solid var(--cream-dark); white-space: nowrap; }
+  .timer.hurry { color: #fff; background: var(--red); border-color: var(--red); animation: pulse 0.5s infinite alternate; }
+  @keyframes pulse { to { transform: scale(1.08); } }
+
+  .coinbar { margin-top: 10px; background: #fff; border: 3px solid var(--cream-dark); border-radius: 16px; height: 34px; position: relative; overflow: hidden; }
+  .coinbar-fill { height: 100%; width: 0%; background: var(--gold); transition: width 0.3s; }
+  .coinbar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 19px; }
+
+  .shops { margin-top: 8px; font-size: 30px; min-height: 42px; text-align: center; line-height: 1.3; word-wrap: break-word; }
+  .shops svg { width: 38px; height: 38px; vertical-align: bottom; margin: 0 1px; }
+  .shops .mine { display: inline-block; vertical-align: bottom; margin-right: 6px; }
+  .shops .mine svg { width: 50px; height: 50px; }
+  .shops .label { font-size: 14px; display: block; margin-top: -6px; font-weight: 700; }
+  .end-shops svg { width: 60px; height: 60px; }
+
+  .customer-area { display: flex; align-items: flex-end; gap: 10px; margin-top: 8px; min-height: 130px; }
+  .customer { flex-shrink: 0; font-size: 84px; line-height: 1; transition: transform 0.25s; }
+  .customer.enter { animation: walkin 0.35s ease-out; }
+  @keyframes walkin { from { transform: translateX(-120px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .bubble {
+    flex: 1; background: #fff; border-radius: 20px; padding: 10px 14px; font-size: 22px; font-weight: 700;
+    border: 3px solid var(--brown); position: relative; margin-bottom: 30px; line-height: 1.25;
+  }
+  .bubble::before {
+    content: ""; position: absolute; left: -16px; bottom: 14px;
+    border: 8px solid transparent; border-right: 10px solid var(--brown);
+  }
+  .bubble .order-icons { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 18px; }
+  .bubble .order-icons svg { width: 44px; height: 44px; }
+  .bubble.happy { border-color: var(--green); background: #e7f8eb; }
+  .bubble.grumpy { border-color: var(--red); background: #fde8e7; }
+
+  .counter {
+    background: var(--brown); border-radius: 20px; padding: 12px; margin-top: 4px;
+    box-shadow: inset 0 -8px 0 var(--brown-dark);
+  }
+  .pie-view { background: var(--cream-dark); border-radius: 14px; height: 130px; display: flex; align-items: center; justify-content: center; }
+  .pie-view svg { width: 170px; height: 120px; }
+  .pie-view .empty { font-size: 20px; color: var(--brown); opacity: 0.7; }
+
+  .step-label { color: #fff; font-weight: 800; font-size: 19px; margin: 10px 2px 4px; }
+  .choices { display: grid; gap: 8px; }
+  .choices.three { grid-template-columns: repeat(3, 1fr); }
+  .choices.two { grid-template-columns: repeat(2, 1fr); }
+  .choice {
+    font-family: inherit; font-weight: 800; font-size: 18px; color: var(--brown-dark);
+    background: var(--cream); border: 4px solid transparent; border-radius: 16px; padding: 6px 4px;
+    cursor: pointer; display: flex; flex-direction: column; align-items: center;
+  }
+  .choice .emo { font-size: 40px; line-height: 1.1; }
+  .choice svg { width: 46px; height: 46px; }
+  .choice.picked { border-color: var(--gold); background: #fff8d9; transform: scale(1.04); }
+  .serve-row { margin-top: 12px; }
+
+  .flash { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); font-size: 40px; font-weight: 800;
+    pointer-events: none; opacity: 0; text-align: center; text-shadow: 2px 2px 0 #fff; white-space: nowrap; }
+  .flash.show { animation: flash 1.1s ease-out; }
+  @keyframes flash {
+    0% { opacity: 0; transform: translate(-50%, -30%) scale(0.6); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    70% { opacity: 1; transform: translate(-50%, -60%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -80%) scale(1); }
+  }
+
+  /* ---------- End screen ---------- */
+  .end-big { font-size: 110px; text-align: center; line-height: 1.1; margin-top: 20px; }
+  .end-title { font-size: 46px; text-align: center; margin: 4px 0; color: var(--pink-dark); }
+  .end-text { font-size: 24px; text-align: center; margin: 6px 0; }
+  .end-shops { font-size: 40px; text-align: center; margin: 8px 0; word-wrap: break-word; }
+  .newbest { font-size: 28px; text-align: center; color: var(--green); font-weight: 800; }
+</style>
+</head>
+<body>
+
+<!-- ===================== TITLE ===================== -->
+<div class="screen active" id="title-screen">
+  <div class="awning"></div>
+  <h1>Laura's Pies</h1>
+  <p class="tagline">The yummiest pie shop in town!</p>
+  <div class="laura">👩‍🍳🥧</div>
+  <div class="how">
+    <ol>
+      <li>Read what the customer wants.</li>
+      <li>Pick the <b>pie</b>, then the <b>topping</b>.</li>
+      <li>Press <b>Serve!</b> Each right pie = <b>5 coins</b> 🪙</li>
+      <li><b>20 coins</b> opens a new pie shop!</li>
+    </ol>
+    You have <b>40 seconds</b>. Open as many shops as you can!
+  </div>
+  <div class="best" id="best-line"></div>
+  <button class="btn big" id="start-btn">Open the shop!</button>
+</div>
+
+<!-- ===================== GAME ===================== -->
+<div class="screen" id="game-screen">
+  <div class="hud">
+    <div class="hud-box timer" id="timer">⏰ 40</div>
+    <div class="hud-box" id="coins">🪙 0</div>
+  </div>
+  <div class="coinbar">
+    <div class="coinbar-fill" id="coinbar-fill"></div>
+    <div class="coinbar-text" id="coinbar-text">0 / 20 coins to a new shop</div>
+  </div>
+  <div class="shops" id="shops"></div>
+
+  <div class="customer-area">
+    <div class="customer" id="customer">🙂</div>
+    <div class="bubble" id="bubble"></div>
+  </div>
+
+  <div class="counter">
+    <div class="pie-view" id="pie-view"></div>
+    <div class="step-label">1. Pick the pie</div>
+    <div class="choices three" id="pie-choices"></div>
+    <div class="step-label">2. Pick the topping</div>
+    <div class="choices two" id="topping-choices"></div>
+    <div class="serve-row"><button class="btn serve" id="serve-btn" disabled>Serve! 🛎️</button></div>
+  </div>
+</div>
+
+<!-- ===================== END ===================== -->
+<div class="screen" id="end-screen">
+  <div class="awning"></div>
+  <div class="end-big">⏰</div>
+  <div class="end-title">Time's up!</div>
+  <div class="end-text" id="end-text"></div>
+  <div class="end-shops" id="end-shops"></div>
+  <div class="end-text" id="end-stats"></div>
+  <div class="newbest" id="newbest"></div>
+  <button class="btn big" id="again-btn">Play again!</button>
+</div>
+
+<div class="flash" id="flash"></div>
+
+<script>
+// ============================================================
+//  SETTINGS. Change these numbers to change the game!
+// ============================================================
+const GAME_SECONDS   = 40;  // how long you have
+const COINS_PER_PIE  = 5;   // coins for each right pie
+const COINS_PER_SHOP = 20;  // coins needed to open a new shop
+
+const PIES = [
+  { id: "apple",   name: "Apple",   emoji: "🍎", filling: "#e9b54c", lattice: true },
+  { id: "pumpkin", name: "Pumpkin", emoji: "🎃", filling: "#d9742a", lattice: false },
+  { id: "peach",   name: "Peach",   emoji: "🍑", filling: "#f7a66a", lattice: true },
+];
+const TOPPINGS = [
+  { id: "cream",    name: "Whipped cream" },
+  { id: "icecream", name: "Ice cream" },
+];
+const CUSTOMERS = ["🧒", "👧", "👦", "👩", "👨", "👵", "👴", "🧑", "👱‍♀️", "👩‍🦰", "🧔", "👮", "🧑‍🚒", "🤴", "👸"];
+const HAPPY_WORDS = ["Yum!", "Thank you!", "Delicious!", "Perfect!", "Wow!"];
+
+// ============================================================
+//  DRAWINGS (little pictures made with SVG)
+// ============================================================
+function toppingSvg(id, x, y, s) {
+  // draws a topping centred at x,y with size s
+  if (id === "cream") {
+    return `<g fill="#fffdf8" stroke="#e8dcc8" stroke-width="2">
+      <ellipse cx="${x}" cy="${y + s*0.25}" rx="${s*0.55}" ry="${s*0.28}"/>
+      <ellipse cx="${x}" cy="${y}" rx="${s*0.4}" ry="${s*0.24}"/>
+      <ellipse cx="${x}" cy="${y - s*0.22}" rx="${s*0.24}" ry="${s*0.18}"/>
+      <path d="M${x} ${y - s*0.48} q${s*0.1} ${s*0.12} 0 ${s*0.16}" fill="#fffdf8"/>
+    </g>`;
+  }
+  // ice cream scoop
+  return `<g>
+    <circle cx="${x}" cy="${y}" r="${s*0.45}" fill="#fbeed3" stroke="#e3cfa6" stroke-width="2"/>
+    <path d="M${x - s*0.45} ${y + s*0.05} q${s*0.15} ${s*0.22} ${s*0.3} 0 q${s*0.15} ${s*0.22} ${s*0.3} 0 q${s*0.15} ${s*0.22} ${s*0.3} 0" fill="#fbeed3" stroke="#e3cfa6" stroke-width="2"/>
+    <circle cx="${x - s*0.15}" cy="${y - s*0.15}" r="${s*0.08}" fill="#fff" opacity="0.8"/>
+  </g>`;
+}
+
+function pieSvg(pie, toppingId) {
+  // a pie seen from the side-ish: tin, crust, filling, optional topping
+  let lattice = "";
+  if (pie && pie.lattice) {
+    lattice = `<g stroke="#c98b45" stroke-width="7" stroke-linecap="round" opacity="0.95">
+      <line x1="55" y1="62" x2="115" y2="62"/><line x1="45" y1="74" x2="125" y2="74"/>
+      <line x1="70" y1="54" x2="70" y2="86"/><line x1="100" y1="54" x2="100" y2="86"/>
+    </g>`;
+  }
+  const filling = pie ? pie.filling : "#f3dcb5";
+  const top = toppingId ? toppingSvg(toppingId, 85, 52, 50) : "";
+  return `<svg viewBox="0 0 170 120" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18 72 L32 104 Q85 116 138 104 L152 72 Z" fill="#b9c0c7" stroke="#8d959d" stroke-width="2"/>
+    <ellipse cx="85" cy="72" rx="68" ry="24" fill="#d9a35b" stroke="#a8743a" stroke-width="3"/>
+    <ellipse cx="85" cy="70" rx="56" ry="18" fill="${filling}"/>
+    ${lattice}
+    ${top}
+  </svg>`;
+}
+
+function shopSvg() {
+  // a little pie shop with a pink striped awning
+  return `<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+    <rect x="8" y="22" width="44" height="34" rx="2" fill="#fff5e6" stroke="#7a4a2a" stroke-width="2"/>
+    <rect x="24" y="38" width="12" height="18" fill="#a8743a"/>
+    <rect x="12" y="36" width="9" height="9" fill="#bfe3f5" stroke="#7a4a2a" stroke-width="1.5"/>
+    <rect x="39" y="36" width="9" height="9" fill="#bfe3f5" stroke="#7a4a2a" stroke-width="1.5"/>
+    <path d="M4 14 H56 L54 26 H6 Z" fill="#fff" stroke="#d65a87" stroke-width="2"/>
+    <path d="M10.5 14 H17 L16 26 H9.5 Z M23.5 14 H30 L30 26 H23 Z M36.5 14 H43 L44 26 H37 Z M49.5 14 H56 L54 26 H50.5 Z" fill="#f27da6"/>
+    <rect x="18" y="4" width="24" height="10" rx="3" fill="#7a4a2a"/>
+    <text x="30" y="12" font-size="8" text-anchor="middle">🥧</text>
+  </svg>`;
+}
+
+function smallToppingSvg(id) {
+  return `<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">${toppingSvg(id, 30, 34, 46)}</svg>`;
+}
+
+// ============================================================
+//  SOUNDS (beeps made by the computer, no sound files)
+// ============================================================
+let audio = null;
+function beep(freq, len, type = "sine", when = 0, vol = 0.15) {
+  if (!audio) return;
+  const t = audio.currentTime + when;
+  const o = audio.createOscillator();
+  const g = audio.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + len);
+  o.connect(g); g.connect(audio.destination);
+  o.start(t); o.stop(t + len);
+}
+const sounds = {
+  click() { beep(600, 0.06, "triangle"); },
+  right() { beep(660, 0.1, "triangle"); beep(880, 0.15, "triangle", 0.08); },
+  wrong() { beep(200, 0.25, "sawtooth", 0, 0.1); },
+  shop()  { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.18, "triangle", i * 0.1)); },
+  tick()  { beep(1000, 0.04, "square", 0, 0.05); },
+  end()   { [784, 659, 523].forEach((f, i) => beep(f, 0.25, "triangle", i * 0.18)); },
+};
+
+// ============================================================
+//  SAVING YOUR BEST SCORE
+// ============================================================
+const BEST_KEY = "laurasPies.best.v1";
+function loadBest() { try { return parseInt(localStorage.getItem(BEST_KEY), 10) || 0; } catch (e) { return 0; } }
+function saveBest(n) { try { localStorage.setItem(BEST_KEY, String(n)); } catch (e) {} }
+
+// ============================================================
+//  THE GAME
+// ============================================================
+const $ = (id) => document.getElementById(id);
+let state = null;
+let timerHandle = null;
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+function showBestLine() {
+  const best = loadBest();
+  $("best-line").textContent = best > 0 ? `🏆 Your best: ${best} new shop${best === 1 ? "" : "s"}` : "";
+}
+
+function buildButtons() {
+  $("pie-choices").innerHTML = PIES.map(p =>
+    `<button class="choice" data-pie="${p.id}"><span class="emo">${p.emoji}</span>${p.name}</button>`).join("");
+  $("topping-choices").innerHTML = TOPPINGS.map(t =>
+    `<button class="choice" data-topping="${t.id}">${smallToppingSvg(t.id)}${t.name}</button>`).join("");
+  document.querySelectorAll("[data-pie]").forEach(b => b.addEventListener("click", () => pickPie(b.dataset.pie)));
+  document.querySelectorAll("[data-topping]").forEach(b => b.addEventListener("click", () => pickTopping(b.dataset.topping)));
+}
+
+function startGame() {
+  if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (audio && audio.state === "suspended") audio.resume();
+  state = {
+    timeLeft: GAME_SECONDS,
+    coins: 0,        // coins toward the next shop
+    newShops: 0,     // shops opened (the score)
+    served: 0,
+    mistakes: 0,
+    order: null,
+    pickedPie: null,
+    pickedTopping: null,
+    busy: false,     // true for a moment while a customer leaves
+    lastKey: null,
+  };
+  showScreen("game-screen");
+  updateHud();
+  nextCustomer();
+  clearInterval(timerHandle);
+  timerHandle = setInterval(tick, 1000);
+}
+
+function tick() {
+  state.timeLeft--;
+  updateHud();
+  if (state.timeLeft <= 5 && state.timeLeft > 0) sounds.tick();
+  if (state.timeLeft <= 0) endGame();
+}
+
+function updateHud() {
+  $("timer").textContent = `⏰ ${Math.max(0, state.timeLeft)}`;
+  $("timer").classList.toggle("hurry", state.timeLeft <= 10);
+  $("coins").textContent = `🪙 ${state.coins}`;
+  $("coinbar-fill").style.width = `${(state.coins / COINS_PER_SHOP) * 100}%`;
+  $("coinbar-text").textContent = `${state.coins} / ${COINS_PER_SHOP} coins to a new shop`;
+  // the first shop is where Laura works; the others are the new ones
+  let html = `<span class="mine">${shopSvg()}<span class="label">Laura's</span></span>`;
+  html += shopSvg().repeat(state.newShops);
+  $("shops").innerHTML = html;
+}
+
+function nextCustomer() {
+  // pick an order that isn't the same as the last one
+  let pie, topping, key;
+  do {
+    pie = PIES[Math.floor(Math.random() * PIES.length)];
+    topping = TOPPINGS[Math.floor(Math.random() * TOPPINGS.length)];
+    key = pie.id + "+" + topping.id;
+  } while (key === state.lastKey);
+  state.lastKey = key;
+  state.order = { pie, topping };
+  state.pickedPie = null;
+  state.pickedTopping = null;
+  state.busy = false;
+
+  const c = $("customer");
+  c.textContent = CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)];
+  c.classList.remove("enter"); void c.offsetWidth; c.classList.add("enter");
+
+  const b = $("bubble");
+  b.className = "bubble";
+  b.innerHTML = `${pie.name} pie with ${topping.name.toLowerCase()}, please!
+    <div class="order-icons"><span style="font-size:34px">${pie.emoji}</span> + ${smallToppingSvg(topping.id)}</div>`;
+  drawCounter();
+}
+
+function pickPie(id) {
+  if (state.busy) return;
+  state.pickedPie = id;
+  sounds.click();
+  drawCounter();
+}
+function pickTopping(id) {
+  if (state.busy) return;
+  state.pickedTopping = id;
+  sounds.click();
+  drawCounter();
+}
+
+function drawCounter() {
+  const pie = PIES.find(p => p.id === state.pickedPie);
+  if (!pie && !state.pickedTopping) {
+    $("pie-view").innerHTML = `<span class="empty">Make a pie! 👇</span>`;
+  } else {
+    $("pie-view").innerHTML = pieSvg(pie, state.pickedTopping);
+  }
+  document.querySelectorAll("[data-pie]").forEach(b => b.classList.toggle("picked", b.dataset.pie === state.pickedPie));
+  document.querySelectorAll("[data-topping]").forEach(b => b.classList.toggle("picked", b.dataset.topping === state.pickedTopping));
+  $("serve-btn").disabled = !(state.pickedPie && state.pickedTopping);
+}
+
+function serve() {
+  if (state.busy || !state.pickedPie || !state.pickedTopping) return;
+  state.busy = true;
+  const right = state.pickedPie === state.order.pie.id && state.pickedTopping === state.order.topping.id;
+  const b = $("bubble");
+  if (right) {
+    state.served++;
+    state.coins += COINS_PER_PIE;
+    $("customer").textContent = "😄";
+    b.className = "bubble happy";
+    b.textContent = HAPPY_WORDS[Math.floor(Math.random() * HAPPY_WORDS.length)] + " +" + COINS_PER_PIE + " 🪙";
+    if (state.coins >= COINS_PER_SHOP) {
+      state.coins -= COINS_PER_SHOP;
+      state.newShops++;
+      sounds.shop();
+      flash("🏪 New shop opened!", "#3fae5a");
+    } else {
+      sounds.right();
+    }
+  } else {
+    state.mistakes++;
+    $("customer").textContent = "😠";
+    b.className = "bubble grumpy";
+    b.textContent = "That's not what I asked for! Hmph!";
+    sounds.wrong();
+  }
+  updateHud();
+  setTimeout(() => { if (state.timeLeft > 0) nextCustomer(); }, right ? 450 : 900);
+}
+
+function flash(text, color) {
+  const f = $("flash");
+  f.textContent = text;
+  f.style.color = color;
+  f.classList.remove("show"); void f.offsetWidth; f.classList.add("show");
+}
+
+function endGame() {
+  clearInterval(timerHandle);
+  state.busy = true;
+  sounds.end();
+  const n = state.newShops;
+  $("end-text").textContent = n === 0
+    ? "No new shops this time. You can do it, try again!"
+    : `Laura opened ${n} new pie shop${n === 1 ? "" : "s"}!`;
+  $("end-shops").innerHTML = shopSvg().repeat(n + 1);
+  $("end-stats").textContent = `Pies served: ${state.served}  ·  Grumpy customers: ${state.mistakes}`;
+  const best = loadBest();
+  if (n > best) {
+    saveBest(n);
+    $("newbest").textContent = "🏆 NEW BEST SCORE! 🏆";
+  } else {
+    $("newbest").textContent = best > 0 ? `Your best is ${best}.` : "";
+  }
+  showScreen("end-screen");
+}
+
+$("start-btn").addEventListener("click", startGame);
+$("again-btn").addEventListener("click", startGame);
+$("serve-btn").addEventListener("click", serve);
+buildButtons();
+showBestLine();
+</script>
+</body>
+</html>
