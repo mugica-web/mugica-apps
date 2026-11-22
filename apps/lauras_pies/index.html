@@ -137,7 +137,7 @@
   @keyframes nudge { to { box-shadow: 0 0 0 4px var(--gold), 0 4px 0 rgba(0,0,0,0.3); } }
   .bake-meter { position: absolute; left: 6px; right: 6px; bottom: 5px; height: 12px; border-radius: 6px;
     border: 2px solid #1d1e20; overflow: hidden; display: none;
-    background: linear-gradient(90deg, #f1dcb8 0 55%, #3fae5a 55% 85%, #222 85%); }
+    background: linear-gradient(90deg, #f1dcb8 0 50%, #3fae5a 50% 85%, #222 85%); }
   .oven.on .bake-meter { display: block; }
   .oven.on .oven-label { visibility: hidden; }
   .bake-marker { position: absolute; top: -2px; bottom: -2px; width: 4px; left: 0; background: #fff; box-shadow: 0 0 0 1px #000; }
@@ -273,7 +273,7 @@ const GAME_SECONDS   = 40;  // how long you have
 const COINS_PER_PIE  = 5;   // coins for each right pie
 const COINS_PER_SHOP = 20;  // coins needed to open a new shop
 const BAKE_MS        = 2000;  // how long until the bar is full (then it's burnt!)
-const GREEN_FROM     = 0.55;  // the green "just right" part of the bar starts here...
+const GREEN_FROM     = 0.50;  // the green "just right" part of the bar starts here...
 const GREEN_TO       = 0.85;  // ...and ends here
 
 const PIES = [

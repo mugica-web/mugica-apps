@@ -13,6 +13,7 @@ Current apps:
 | Cook Timer | `/cook-timer` | `apps/cook_timer/` | `apps/cook_timer/CLAUDE.md` |
 | Taboo Jr. | `/taboo-jr` | `apps/taboo_jr/` | `apps/taboo_jr/CLAUDE.md` |
 | Hoops Rotation | `/hoops-rotation` | `apps/hoops_rotation/` | `apps/hoops_rotation/CLAUDE.md` |
+| Laura's Pies | `/lauras-pies` | `apps/lauras_pies/` | `apps/lauras_pies/CLAUDE.md` |
 
 ## Stack
 
@@ -56,6 +57,7 @@ apps/
   cook_timer/               — Cook Timer (Blueprint, template, stylesheet)
   taboo_jr/                 — Taboo Jr. (Blueprint, generated game page, deck source)
   hoops_rotation/           — Hoops Rotation (Blueprint, template, engine JS, stylesheet)
+  lauras_pies/              — Laura's Pies (Blueprint, single-file game page)
 ```
 
 ## Git Workflow
