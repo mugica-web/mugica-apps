@@ -61,54 +61,88 @@
   .timer.hurry { color: #fff; background: var(--red); border-color: var(--red); animation: pulse 0.5s infinite alternate; }
   @keyframes pulse { to { transform: scale(1.08); } }
 
-  .coinbar { margin-top: 10px; background: #fff; border: 3px solid var(--cream-dark); border-radius: 16px; height: 34px; position: relative; overflow: hidden; }
+  .hud-box.shopcount { display: flex; align-items: center; gap: 4px; padding: 2px 12px; }
+  .hud-box.shopcount svg { width: 36px; height: 36px; }
+  .coinbar { margin-top: 8px; background: #fff; border: 3px solid var(--cream-dark); border-radius: 14px; height: 28px; position: relative; overflow: hidden; }
   .coinbar-fill { height: 100%; width: 0%; background: var(--gold); transition: width 0.3s; }
-  .coinbar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 19px; }
-
-  .shops { margin-top: 8px; font-size: 30px; min-height: 42px; text-align: center; line-height: 1.3; word-wrap: break-word; }
-  .shops svg { width: 38px; height: 38px; vertical-align: bottom; margin: 0 1px; }
-  .shops .mine { display: inline-block; vertical-align: bottom; margin-right: 6px; }
-  .shops .mine svg { width: 50px; height: 50px; }
-  .shops .label { font-size: 14px; display: block; margin-top: -6px; font-weight: 700; }
+  .coinbar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; }
   .end-shops svg { width: 60px; height: 60px; }
 
-  .customer-area { display: flex; align-items: flex-end; gap: 10px; margin-top: 8px; min-height: 130px; }
-  .customer { flex-shrink: 0; font-size: 84px; line-height: 1; transition: transform 0.25s; }
-  .customer.enter { animation: walkin 0.35s ease-out; }
-  @keyframes walkin { from { transform: translateX(-120px); opacity: 0; } to { transform: none; opacity: 1; } }
+  /* ---------- The shop room ---------- */
+  .scene { position: relative; height: 250px; margin-top: 8px; overflow: hidden;
+    border: 4px solid var(--brown-dark); border-bottom: none; border-radius: 18px 18px 0 0; }
+  .wall { position: absolute; left: 0; right: 0; top: 0; height: 150px;
+    background: repeating-linear-gradient(90deg, #fde3ec 0 18px, #fff3f7 18px 36px); }
+  .wall-awning { position: absolute; left: 0; right: 0; top: 0; height: 22px;
+    background: repeating-linear-gradient(90deg, var(--pink) 0 24px, #fff 24px 48px);
+    border-bottom: 3px solid var(--pink-dark); }
+  .floor { position: absolute; left: 0; right: 0; top: 150px; bottom: 0; border-top: 5px solid #b98a5c;
+    background: conic-gradient(#e6cfb2 25%, #fff7ea 0 50%, #e6cfb2 0 75%, #fff7ea 0) 0 0 / 30px 30px; }
+  .door { position: absolute; left: 10px; top: 44px; width: 58px; height: 106px; background: #a8743a;
+    border: 4px solid var(--brown-dark); border-bottom: none; border-radius: 10px 10px 0 0; }
+  .door::before { content: ""; position: absolute; left: 9px; right: 9px; top: 9px; height: 36px;
+    background: #bfe3f5; border: 3px solid var(--brown-dark); border-radius: 6px; }
+  .door::after { content: ""; position: absolute; right: 7px; top: 58px; width: 8px; height: 8px;
+    background: var(--gold); border-radius: 50%; }
+  .door-sign { position: absolute; left: 4px; right: 4px; top: 70px; font-size: 10px; font-weight: 800;
+    text-align: center; color: #fff; background: var(--pink-dark); border-radius: 4px; line-height: 1.4; z-index: 1; }
+  .case { position: absolute; right: 10px; top: 38px; width: 98px; padding: 2px 4px;
+    background: rgba(191,227,245,0.75); border: 4px solid var(--brown-dark); border-radius: 8px; text-align: center; }
+  .case-shelf { font-size: 20px; line-height: 1.2; border-bottom: 4px solid #a8743a; }
+  .case-label { font-size: 11px; font-weight: 800; color: var(--brown-dark); }
+  .table { position: absolute; top: 156px; width: 100px; height: 80px; }
+  .table.left { left: 6px; }
+  .table.right { right: 6px; }
+  .person { position: absolute; line-height: 1; transform: translateX(-50%); z-index: 2;
+    transition: left 0.4s ease-in-out, top 0.4s ease-in-out, font-size 0.4s, opacity 0.4s; }
   .bubble {
-    flex: 1; background: #fff; border-radius: 20px; padding: 10px 14px; font-size: 22px; font-weight: 700;
-    border: 3px solid var(--brown); position: relative; margin-bottom: 30px; line-height: 1.25;
+    position: absolute; top: 32px; left: 78px; right: 116px; z-index: 3;
+    background: #fff; border-radius: 16px; padding: 6px 10px; font-size: 17px; font-weight: 700;
+    border: 3px solid var(--brown); line-height: 1.2;
   }
-  .bubble::before {
-    content: ""; position: absolute; left: -16px; bottom: 14px;
-    border: 8px solid transparent; border-right: 10px solid var(--brown);
+  .bubble::after {
+    content: ""; position: absolute; left: 55%; bottom: -17px;
+    border: 8px solid transparent; border-top: 10px solid var(--brown);
   }
-  .bubble .order-icons { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 18px; }
-  .bubble .order-icons svg { width: 44px; height: 44px; }
+  .bubble .order-icons { display: flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 16px; }
+  .bubble .order-icons svg { width: 36px; height: 36px; }
   .bubble.happy { border-color: var(--green); background: #e7f8eb; }
+  .bubble.happy::after { border-top-color: var(--green); }
   .bubble.grumpy { border-color: var(--red); background: #fde8e7; }
+  .bubble.grumpy::after { border-top-color: var(--red); }
 
-  .counter {
-    background: var(--brown); border-radius: 20px; padding: 12px; margin-top: 4px;
-    box-shadow: inset 0 -8px 0 var(--brown-dark);
+  @media (max-width: 380px) {
+    .case { width: 80px; right: 8px; }
+    .case-shelf { font-size: 15px; }
+    .bubble { left: 74px; right: 94px; font-size: 15px; }
   }
-  .pie-view { background: var(--cream-dark); border-radius: 14px; height: 130px; display: flex; align-items: center; justify-content: center; }
-  .pie-view svg { width: 170px; height: 120px; }
-  .pie-view .empty { font-size: 20px; color: var(--brown); opacity: 0.7; }
 
-  .step-label { color: #fff; font-weight: 800; font-size: 19px; margin: 10px 2px 4px; }
+  /* ---------- The wooden counter ---------- */
+  .counter-top { position: relative; z-index: 4; height: 104px; display: flex; align-items: flex-end; justify-content: center;
+    background: linear-gradient(#e4b57c, #d29e62); border: 4px solid var(--brown-dark); border-bottom: none;
+    border-top: 8px solid #8a5a33; margin-top: -14px; }
+  .pie-view { height: 100%; display: flex; align-items: center; justify-content: center; }
+  .pie-view svg { width: 150px; height: 106px; }
+  .pie-view .empty { font-size: 20px; font-weight: 800; color: var(--brown-dark); opacity: 0.6; }
+  .counter-front { padding: 6px 10px 14px; border: 4px solid var(--brown-dark); border-top: 6px solid #5c381d;
+    border-radius: 0 0 18px 18px;
+    background: repeating-linear-gradient(90deg, #8a5a33 0 calc(25% - 4px), #6b4325 calc(25% - 4px) 25%); }
+  .step-label { color: #fff; font-weight: 800; font-size: 17px; margin: 4px 2px 2px; text-shadow: 1px 1px 0 var(--brown-dark); }
   .choices { display: grid; gap: 8px; }
   .choices.three { grid-template-columns: repeat(3, 1fr); }
   .choices.two { grid-template-columns: repeat(2, 1fr); }
   .choice {
-    font-family: inherit; font-weight: 800; font-size: 18px; color: var(--brown-dark);
-    background: var(--cream); border: 4px solid transparent; border-radius: 16px; padding: 6px 4px;
-    cursor: pointer; display: flex; flex-direction: column; align-items: center;
+    font-family: inherit; font-weight: 800; font-size: 16px; color: var(--brown-dark); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 82px; border: none; border-radius: 50%; padding: 0;
+    background: radial-gradient(ellipse at 50% 45%, #fff 0 55%, #efe3d1 56% 64%, #fffaf2 65%);
+    box-shadow: 0 4px 0 rgba(0,0,0,0.25); transition: transform 0.08s;
   }
-  .choice .emo { font-size: 40px; line-height: 1.1; }
-  .choice svg { width: 46px; height: 46px; }
-  .choice.picked { border-color: var(--gold); background: #fff8d9; transform: scale(1.04); }
+  .choices.two .choice { border-radius: 14px 14px 40px 40px;
+    background: radial-gradient(ellipse at 50% 30%, #fff 0 45%, #dcefff 46%); }
+  .choice .emo { font-size: 34px; line-height: 1.05; }
+  .choice svg { width: 40px; height: 40px; }
+  .choice.picked { box-shadow: 0 0 0 5px var(--gold), 0 4px 0 rgba(0,0,0,0.25); transform: scale(1.05); }
   .serve-row { margin-top: 12px; }
 
   .flash { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); font-size: 40px; font-weight: 800;
@@ -154,21 +188,31 @@
 <div class="screen" id="game-screen">
   <div class="hud">
     <div class="hud-box timer" id="timer">⏰ 40</div>
+    <div class="hud-box shopcount" id="shops"></div>
     <div class="hud-box" id="coins">🪙 0</div>
   </div>
   <div class="coinbar">
     <div class="coinbar-fill" id="coinbar-fill"></div>
     <div class="coinbar-text" id="coinbar-text">0 / 20 coins to a new shop</div>
   </div>
-  <div class="shops" id="shops"></div>
 
-  <div class="customer-area">
-    <div class="customer" id="customer">🙂</div>
+  <div class="scene" id="scene">
+    <div class="wall"></div>
+    <div class="wall-awning"></div>
+    <div class="floor"></div>
+    <div class="door"><div class="door-sign">OPEN</div></div>
+    <div class="case">
+      <div class="case-shelf">🥧🥧🥧</div>
+      <div class="case-shelf">🥧🥧🥧</div>
+      <div class="case-label">Laura's Pies</div>
+    </div>
+    <div class="table left" id="table-left"></div>
+    <div class="table right" id="table-right"></div>
     <div class="bubble" id="bubble"></div>
   </div>
 
-  <div class="counter">
-    <div class="pie-view" id="pie-view"></div>
+  <div class="counter-top"><div class="pie-view" id="pie-view"></div></div>
+  <div class="counter-front">
     <div class="step-label">1. Pick the pie</div>
     <div class="choices three" id="pie-choices"></div>
     <div class="step-label">2. Pick the topping</div>
@@ -266,6 +310,23 @@ function shopSvg() {
   </svg>`;
 }
 
+function tableSvg() {
+  // a round table with a pink tablecloth and a chair on each side
+  const chair = (x, flip) => `<g fill="#a8743a" stroke="#4e2e18" stroke-width="2">
+      <rect x="${flip ? x + 14 : x}" y="18" width="6" height="38" rx="2"/>
+      <rect x="${x}" y="50" width="20" height="6" rx="2"/>
+      <rect x="${x + 1}" y="56" width="4" height="22"/><rect x="${x + 15}" y="56" width="4" height="22"/>
+    </g>`;
+  return `<svg viewBox="0 0 100 80" xmlns="http://www.w3.org/2000/svg">
+    ${chair(4, false)}${chair(76, true)}
+    <rect x="46" y="44" width="8" height="30" fill="#7a4a2a"/>
+    <ellipse cx="50" cy="76" rx="14" ry="3" fill="#7a4a2a"/>
+    <path d="M24 38 Q50 30 76 38 L74 50 Q50 56 26 50 Z" fill="#f27da6" stroke="#d65a87" stroke-width="2"/>
+    <ellipse cx="50" cy="38" rx="26" ry="7" fill="#fff" stroke="#d65a87" stroke-width="2"/>
+    <ellipse cx="50" cy="36" rx="9" ry="3.5" fill="#d9a35b" stroke="#a8743a" stroke-width="1.5"/>
+  </svg>`;
+}
+
 function smallToppingSvg(id) {
   return `<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">${toppingSvg(id, 30, 34, 46)}</svg>`;
 }
@@ -344,6 +405,7 @@ function startGame() {
     lastKey: null,
   };
   showScreen("game-screen");
+  clearShop();
   updateHud();
   nextCustomer();
   clearInterval(timerHandle);
@@ -364,9 +426,43 @@ function updateHud() {
   $("coinbar-fill").style.width = `${(state.coins / COINS_PER_SHOP) * 100}%`;
   $("coinbar-text").textContent = `${state.coins} / ${COINS_PER_SHOP} coins to a new shop`;
   // the first shop is where Laura works; the others are the new ones
-  let html = `<span class="mine">${shopSvg()}<span class="label">Laura's</span></span>`;
-  html += shopSvg().repeat(state.newShops);
-  $("shops").innerHTML = html;
+  $("shops").innerHTML = `${shopSvg()} ${1 + state.newShops}`;
+}
+
+// ---------- people walking around the shop ----------
+const DOOR = { x: 39, y: 78, size: 44 };
+function counterSpot() { return { x: $("scene").clientWidth / 2, y: 146, size: 70 }; }
+function seatSpots() {
+  const w = $("scene").clientWidth;
+  // the 4 chairs: two at the left table, two at the right table
+  return [ { x: 20, y: 172 }, { x: 92, y: 172 }, { x: w - 92, y: 172 }, { x: w - 20, y: 172 } ]
+    .map(s => ({ ...s, size: 30 }));
+}
+function placePerson(el, spot) {
+  el.style.left = spot.x + "px";
+  el.style.top = spot.y + "px";
+  el.style.fontSize = spot.size + "px";
+}
+function makePerson(face) {
+  const el = document.createElement("div");
+  el.className = "person";
+  el.textContent = face;
+  placePerson(el, DOOR);
+  el.style.opacity = "0";
+  $("scene").appendChild(el);
+  void el.offsetWidth;  // let the browser notice the start spot before we move it
+  return el;
+}
+function walkOut(el) {
+  placePerson(el, DOOR);
+  el.style.opacity = "0";
+  setTimeout(() => el.remove(), 450);
+}
+function clearShop() {
+  document.querySelectorAll("#scene .person").forEach(el => el.remove());
+  state.diners = [null, null, null, null];
+  state.nextSeat = 0;
+  state.customerEl = null;
 }
 
 function nextCustomer() {
@@ -383,13 +479,14 @@ function nextCustomer() {
   state.pickedTopping = null;
   state.busy = false;
 
-  const c = $("customer");
-  c.textContent = CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)];
-  c.classList.remove("enter"); void c.offsetWidth; c.classList.add("enter");
+  const el = makePerson(CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)]);
+  placePerson(el, counterSpot());
+  el.style.opacity = "1";
+  state.customerEl = el;
 
   const b = $("bubble");
   b.className = "bubble";
-  b.innerHTML = `${pie.name} pie with ${topping.name.toLowerCase()}, please!
+  b.innerHTML = `${pie.name} pie with ${topping.name.toLowerCase()}!
     <div class="order-icons"><span style="font-size:34px">${pie.emoji}</span> + ${smallToppingSvg(topping.id)}</div>`;
   drawCounter();
 }
@@ -427,7 +524,7 @@ function serve() {
   if (right) {
     state.served++;
     state.coins += COINS_PER_PIE;
-    $("customer").textContent = "😄";
+    sitDown(state.customerEl);
     b.className = "bubble happy";
     b.textContent = HAPPY_WORDS[Math.floor(Math.random() * HAPPY_WORDS.length)] + " +" + COINS_PER_PIE + " 🪙";
     if (state.coins >= COINS_PER_SHOP) {
@@ -440,13 +537,25 @@ function serve() {
     }
   } else {
     state.mistakes++;
-    $("customer").textContent = "😠";
+    const grumpy = state.customerEl;
+    grumpy.textContent = "😠";
+    setTimeout(() => walkOut(grumpy), 400);
     b.className = "bubble grumpy";
     b.textContent = "That's not what I asked for! Hmph!";
     sounds.wrong();
   }
   updateHud();
   setTimeout(() => { if (state.timeLeft > 0) nextCustomer(); }, right ? 450 : 900);
+}
+
+function sitDown(el) {
+  // the happy customer takes the next chair; whoever was sitting there goes home
+  el.textContent = "😋";
+  const i = state.nextSeat;
+  state.nextSeat = (state.nextSeat + 1) % 4;
+  if (state.diners[i]) walkOut(state.diners[i]);
+  state.diners[i] = el;
+  setTimeout(() => placePerson(el, seatSpots()[i]), 150);
 }
 
 function flash(text, color) {
@@ -480,6 +589,8 @@ $("start-btn").addEventListener("click", startGame);
 $("again-btn").addEventListener("click", startGame);
 $("serve-btn").addEventListener("click", serve);
 buildButtons();
+$("table-left").innerHTML = tableSvg();
+$("table-right").innerHTML = tableSvg();
 showBestLine();
 </script>
 </body>
