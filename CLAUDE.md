@@ -14,6 +14,7 @@ Current apps:
 | Taboo Jr. | `/taboo-jr` | `apps/taboo_jr/` | `apps/taboo_jr/CLAUDE.md` |
 | Hoops Rotation | `/hoops-rotation` | `apps/hoops_rotation/` | `apps/hoops_rotation/CLAUDE.md` |
 | Laura's Pies | `/lauras-pies` | `apps/lauras_pies/` | `apps/lauras_pies/CLAUDE.md` |
+| Sarah's Pizza Shop | `/sarahs-pizza` | `apps/sarahs_pizza/` | `apps/sarahs_pizza/CLAUDE.md` |
 
 ## Stack
 
@@ -58,6 +59,7 @@ apps/
   taboo_jr/                 — Taboo Jr. (Blueprint, generated game page, deck source)
   hoops_rotation/           — Hoops Rotation (Blueprint, template, engine JS, stylesheet)
   lauras_pies/              — Laura's Pies (Blueprint, single-file game page)
+  sarahs_pizza/             — Sarah's Pizza Shop (Blueprint, single-file game page)
 ```
 
 ## Git Workflow
