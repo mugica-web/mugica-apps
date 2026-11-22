@@ -118,10 +118,30 @@
   }
 
   /* ---------- The wooden counter ---------- */
-  .counter-top { position: relative; z-index: 4; height: 104px; display: flex; align-items: flex-end; justify-content: center;
+  .counter-top { position: relative; z-index: 4; height: 120px; display: flex; align-items: flex-end; justify-content: center;
     background: linear-gradient(#e4b57c, #d29e62); border: 4px solid var(--brown-dark); border-bottom: none;
     border-top: 8px solid #8a5a33; margin-top: -14px; }
-  .pie-view { height: 100%; display: flex; align-items: center; justify-content: center; }
+  .pie-view { flex: 1; height: 100%; display: flex; align-items: center; justify-content: center; }
+  .pie-view .in-oven { font-size: 17px; font-weight: 800; color: var(--brown-dark); text-align: center; }
+  .oven { width: 128px; height: 104px; margin: 0 10px 6px 0; flex-shrink: 0; cursor: pointer; position: relative;
+    background: linear-gradient(#6b6f75, #4a4d52); border: 4px solid #2c2e31; border-radius: 10px;
+    display: flex; flex-direction: column; align-items: center; padding: 4px; box-shadow: 0 4px 0 rgba(0,0,0,0.3); }
+  .oven:active { transform: translateY(2px); }
+  .oven-knobs { display: flex; gap: 8px; height: 10px; }
+  .oven-knobs i { width: 9px; height: 9px; border-radius: 50%; background: #c9ccd0; display: block; }
+  .oven-window { width: 100%; height: 36px; margin-top: 3px; border-radius: 6px; background: #1d1e20;
+    border: 3px solid #2c2e31; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+  .oven.on .oven-window { background: radial-gradient(ellipse at 50% 70%, #ffd25a 0, #ff8a1f 55%, #b8400e 100%); }
+  .oven-label { color: #fff; font-size: 12px; font-weight: 800; line-height: 1.15; text-align: center; margin-top: 3px; }
+  .oven.ready { animation: nudge 0.8s infinite alternate; }
+  @keyframes nudge { to { box-shadow: 0 0 0 4px var(--gold), 0 4px 0 rgba(0,0,0,0.3); } }
+  .bake-meter { position: absolute; left: 6px; right: 6px; bottom: 5px; height: 12px; border-radius: 6px;
+    border: 2px solid #1d1e20; overflow: hidden; display: none;
+    background: linear-gradient(90deg, #f1dcb8 0 55%, #3fae5a 55% 85%, #222 85%); }
+  .oven.on .bake-meter { display: block; }
+  .oven.on .oven-label { visibility: hidden; }
+  .bake-marker { position: absolute; top: -2px; bottom: -2px; width: 4px; left: 0; background: #fff; box-shadow: 0 0 0 1px #000; }
+  .choice:disabled { opacity: 0.45; cursor: default; }
   .pie-view svg { width: 150px; height: 106px; }
   .pie-view .empty { font-size: 20px; font-weight: 800; color: var(--brown-dark); opacity: 0.6; }
   .counter-front { padding: 6px 10px 14px; border: 4px solid var(--brown-dark); border-top: 6px solid #5c381d;
@@ -174,7 +194,9 @@
   <div class="how">
     <ol>
       <li>Read what the customer wants.</li>
-      <li>Pick the <b>pie</b>, then the <b>topping</b>.</li>
+      <li>Pick the <b>pie</b>.</li>
+      <li>Tap the <b>oven</b> to bake it. Tap again to take it out when the bar is <b style="color:#3fae5a">green</b>. Don't burn it!</li>
+      <li>Pick the <b>topping</b>.</li>
       <li>Press <b>Serve!</b> Each right pie = <b>5 coins</b> 🪙</li>
       <li><b>20 coins</b> opens a new pie shop!</li>
     </ol>
@@ -211,11 +233,19 @@
     <div class="bubble" id="bubble"></div>
   </div>
 
-  <div class="counter-top"><div class="pie-view" id="pie-view"></div></div>
+  <div class="counter-top">
+    <div class="pie-view" id="pie-view"></div>
+    <div class="oven" id="oven">
+      <div class="oven-knobs"><i></i><i></i><i></i></div>
+      <div class="oven-window" id="oven-window"></div>
+      <div class="oven-label" id="oven-label"></div>
+      <div class="bake-meter"><div class="bake-marker" id="bake-marker"></div></div>
+    </div>
+  </div>
   <div class="counter-front">
     <div class="step-label">1. Pick the pie</div>
     <div class="choices three" id="pie-choices"></div>
-    <div class="step-label">2. Pick the topping</div>
+    <div class="step-label">3. Pick the topping</div>
     <div class="choices two" id="topping-choices"></div>
     <div class="serve-row"><button class="btn serve" id="serve-btn" disabled>Serve! 🛎️</button></div>
   </div>
@@ -242,11 +272,14 @@
 const GAME_SECONDS   = 40;  // how long you have
 const COINS_PER_PIE  = 5;   // coins for each right pie
 const COINS_PER_SHOP = 20;  // coins needed to open a new shop
+const BAKE_MS        = 2000;  // how long until the bar is full (then it's burnt!)
+const GREEN_FROM     = 0.55;  // the green "just right" part of the bar starts here...
+const GREEN_TO       = 0.85;  // ...and ends here
 
 const PIES = [
-  { id: "apple",   name: "Apple",   emoji: "🍎", filling: "#e9b54c", lattice: true },
-  { id: "pumpkin", name: "Pumpkin", emoji: "🎃", filling: "#d9742a", lattice: false },
-  { id: "peach",   name: "Peach",   emoji: "🍑", filling: "#f7a66a", lattice: true },
+  { id: "apple",   name: "Apple",   emoji: "🍎", filling: "#e9b54c", raw: "#f3df9e", lattice: true },
+  { id: "pumpkin", name: "Pumpkin", emoji: "🎃", filling: "#d9742a", raw: "#f1b67e", lattice: false },
+  { id: "peach",   name: "Peach",   emoji: "🍑", filling: "#f7a66a", raw: "#fad3ad", lattice: true },
 ];
 const TOPPINGS = [
   { id: "cream",    name: "Whipped cream" },
@@ -276,20 +309,27 @@ function toppingSvg(id, x, y, s) {
   </g>`;
 }
 
-function pieSvg(pie, toppingId) {
+function pieSvg(pie, toppingId, bake) {
   // a pie seen from the side-ish: tin, crust, filling, optional topping
+  // bake is "perfect", "burnt", or anything else = raw (pale)
+  let crust = "#f1dcb8", crustLine = "#d8bf95", filling = pie.raw, latticeColor = "#ead0a2";
+  if (bake === "perfect") { crust = "#d9a35b"; crustLine = "#a8743a"; filling = pie.filling; latticeColor = "#c98b45"; }
+  if (bake === "burnt")   { crust = "#3f2a1c"; crustLine = "#1e120a"; filling = "#4a2e1c"; latticeColor = "#2b1a0f"; }
   let lattice = "";
-  if (pie && pie.lattice) {
-    lattice = `<g stroke="#c98b45" stroke-width="7" stroke-linecap="round" opacity="0.95">
+  if (pie.lattice) {
+    lattice = `<g stroke="${latticeColor}" stroke-width="7" stroke-linecap="round" opacity="0.95">
       <line x1="55" y1="62" x2="115" y2="62"/><line x1="45" y1="74" x2="125" y2="74"/>
       <line x1="70" y1="54" x2="70" y2="86"/><line x1="100" y1="54" x2="100" y2="86"/>
     </g>`;
   }
-  const filling = pie ? pie.filling : "#f3dcb5";
+  const smoke = bake === "burnt" ? `<g fill="#888" opacity="0.6">
+      <circle cx="60" cy="30" r="10"/><circle cx="70" cy="18" r="8"/><circle cx="110" cy="28" r="9"/><circle cx="102" cy="15" r="7"/>
+    </g>` : "";
   const top = toppingId ? toppingSvg(toppingId, 85, 52, 50) : "";
   return `<svg viewBox="0 0 170 120" xmlns="http://www.w3.org/2000/svg">
+    ${smoke}
     <path d="M18 72 L32 104 Q85 116 138 104 L152 72 Z" fill="#b9c0c7" stroke="#8d959d" stroke-width="2"/>
-    <ellipse cx="85" cy="72" rx="68" ry="24" fill="#d9a35b" stroke="#a8743a" stroke-width="3"/>
+    <ellipse cx="85" cy="72" rx="68" ry="24" fill="${crust}" stroke="${crustLine}" stroke-width="3"/>
     <ellipse cx="85" cy="70" rx="56" ry="18" fill="${filling}"/>
     ${lattice}
     ${top}
@@ -401,6 +441,8 @@ function startGame() {
     order: null,
     pickedPie: null,
     pickedTopping: null,
+    bake: null,      // null = not baked yet, "baking", then "raw" / "perfect" / "burnt"
+    bakeStart: 0,
     busy: false,     // true for a moment while a customer leaves
     lastKey: null,
   };
@@ -477,6 +519,7 @@ function nextCustomer() {
   state.order = { pie, topping };
   state.pickedPie = null;
   state.pickedTopping = null;
+  state.bake = null;
   state.busy = false;
 
   const el = makePerson(CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)]);
@@ -492,34 +535,88 @@ function nextCustomer() {
 }
 
 function pickPie(id) {
-  if (state.busy) return;
+  if (state.busy || state.bake === "baking") return;
+  // picking a pie always starts a brand new (raw) pie
   state.pickedPie = id;
+  state.bake = null;
+  state.pickedTopping = null;
   sounds.click();
   drawCounter();
 }
 function pickTopping(id) {
-  if (state.busy) return;
+  if (state.busy || !isBaked()) return;
   state.pickedTopping = id;
   sounds.click();
+  drawCounter();
+}
+function isBaked() { return ["raw", "perfect", "burnt"].includes(state.bake); }
+
+// ---------- the oven ----------
+let bakeFrame = null;
+function tapOven() {
+  if (state.busy) return;
+  if (state.bake === null && state.pickedPie) {
+    state.bake = "baking";
+    state.bakeStart = performance.now();
+    sounds.click();
+    drawCounter();
+    bakeFrame = requestAnimationFrame(bakeLoop);
+  } else if (state.bake === "baking") {
+    takeOut((performance.now() - state.bakeStart) / BAKE_MS);
+  }
+}
+function bakeLoop() {
+  if (state.bake !== "baking") return;
+  const amount = (performance.now() - state.bakeStart) / BAKE_MS;
+  if (amount >= 1) { takeOut(1); return; }  // left in too long: burnt!
+  $("bake-marker").style.left = `calc(${amount * 100}% - 2px)`;
+  bakeFrame = requestAnimationFrame(bakeLoop);
+}
+function takeOut(amount) {
+  cancelAnimationFrame(bakeFrame);
+  if (amount < GREEN_FROM) { state.bake = "raw"; sounds.wrong(); }
+  else if (amount <= GREEN_TO) { state.bake = "perfect"; sounds.right(); }
+  else { state.bake = "burnt"; sounds.wrong(); }
   drawCounter();
 }
 
 function drawCounter() {
   const pie = PIES.find(p => p.id === state.pickedPie);
-  if (!pie && !state.pickedTopping) {
-    $("pie-view").innerHTML = `<span class="empty">Make a pie! 👇</span>`;
+  const oven = $("oven");
+  if (!pie) {
+    $("pie-view").innerHTML = `<span class="empty">Pick a pie! 👇</span>`;
+  } else if (state.bake === "baking") {
+    $("pie-view").innerHTML = `<span class="in-oven">In the oven! 🔥<br>Watch the bar 👉</span>`;
   } else {
-    $("pie-view").innerHTML = pieSvg(pie, state.pickedTopping);
+    $("pie-view").innerHTML = pieSvg(pie, state.pickedTopping, state.bake);
   }
-  document.querySelectorAll("[data-pie]").forEach(b => b.classList.toggle("picked", b.dataset.pie === state.pickedPie));
-  document.querySelectorAll("[data-topping]").forEach(b => b.classList.toggle("picked", b.dataset.topping === state.pickedTopping));
-  $("serve-btn").disabled = !(state.pickedPie && state.pickedTopping);
+  oven.classList.toggle("on", state.bake === "baking");
+  oven.classList.toggle("ready", !!pie && state.bake === null);
+  $("oven-window").textContent = state.bake === "baking" ? "🥧" : "";
+  $("bake-marker").style.left = "0";
+  let label = "Oven";
+  if (pie && state.bake === null) label = "2. Tap to bake! 🔥";
+  if (state.bake === "perfect") label = "Just right! ✨";
+  if (state.bake === "raw") label = "Too soon! Raw 🤢";
+  if (state.bake === "burnt") label = "Burnt! 💨 Pick a pie to redo";
+  $("oven-label").textContent = label;
+
+  document.querySelectorAll("[data-pie]").forEach(b => {
+    b.classList.toggle("picked", b.dataset.pie === state.pickedPie);
+    b.disabled = state.bake === "baking";
+  });
+  document.querySelectorAll("[data-topping]").forEach(b => {
+    b.classList.toggle("picked", b.dataset.topping === state.pickedTopping);
+    b.disabled = !isBaked();
+  });
+  $("serve-btn").disabled = !(isBaked() && state.pickedTopping);
 }
 
 function serve() {
-  if (state.busy || !state.pickedPie || !state.pickedTopping) return;
+  if (state.busy || !isBaked() || !state.pickedTopping) return;
   state.busy = true;
-  const right = state.pickedPie === state.order.pie.id && state.pickedTopping === state.order.topping.id;
+  const rightOrder = state.pickedPie === state.order.pie.id && state.pickedTopping === state.order.topping.id;
+  const right = rightOrder && state.bake === "perfect";
   const b = $("bubble");
   if (right) {
     state.served++;
@@ -531,7 +628,7 @@ function serve() {
       state.coins -= COINS_PER_SHOP;
       state.newShops++;
       sounds.shop();
-      flash("🏪 New shop opened!", "#3fae5a");
+      flash("🎉 New shop opened!", "#3fae5a");
     } else {
       sounds.right();
     }
@@ -541,7 +638,9 @@ function serve() {
     grumpy.textContent = "😠";
     setTimeout(() => walkOut(grumpy), 400);
     b.className = "bubble grumpy";
-    b.textContent = "That's not what I asked for! Hmph!";
+    b.textContent = !rightOrder ? "That's not what I asked for! Hmph!"
+      : state.bake === "burnt" ? "Eww! It's BURNT! Hmph!"
+      : "Yuck! It's not cooked! Hmph!";
     sounds.wrong();
   }
   updateHud();
@@ -567,6 +666,7 @@ function flash(text, color) {
 
 function endGame() {
   clearInterval(timerHandle);
+  cancelAnimationFrame(bakeFrame);
   state.busy = true;
   sounds.end();
   const n = state.newShops;
@@ -588,6 +688,9 @@ function endGame() {
 $("start-btn").addEventListener("click", startGame);
 $("again-btn").addEventListener("click", startGame);
 $("serve-btn").addEventListener("click", serve);
+$("oven").addEventListener("click", tapOven);
+document.querySelector(".bake-meter").style.background =
+  `linear-gradient(90deg, #f1dcb8 0 ${GREEN_FROM * 100}%, #3fae5a ${GREEN_FROM * 100}% ${GREEN_TO * 100}%, #222 ${GREEN_TO * 100}%)`;
 buildButtons();
 $("table-left").innerHTML = tableSvg();
 $("table-right").innerHTML = tableSvg();
