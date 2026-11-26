@@ -27,7 +27,8 @@ silently does nothing where it isn't available.
 
 ## Rules As Implemented
 
-- Toppings: tomato 🍅, pineapple 🍍, green pepper 🫑.
+- Toppings: tomato 🍅, pineapple 🍍, green pepper 🫑, mushroom 🍄, broccoli 🥦
+  (buttons sit 3 + 2).
 - Orders get harder with stars: under 3 stars, one topping ×1–2; 3–5 stars,
   one or two toppings ×1–3; 6+ stars, two toppings ×1–3.
 - Tap a topping to add a piece (max 9), ↩️ removes the last one, 🔥 Bake!
