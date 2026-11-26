@@ -159,6 +159,9 @@
   .choices { display: grid; gap: 8px; }
   .choices.three { grid-template-columns: repeat(3, 1fr); }
   .choices.two { grid-template-columns: repeat(2, 1fr); }
+  .choices.toppings { grid-template-columns: repeat(4, 1fr); }
+  .choices.toppings .choice { font-size: 13px; line-height: 1.05; padding: 0 2px; }
+  .choices.toppings .choice svg { width: 32px; height: 32px; flex-shrink: 0; }
   /* 5 pies: 3 on top and 2 underneath on phones, all 5 in a row on wider screens */
   .choices.pies { grid-template-columns: repeat(6, 1fr); }
   .choices.pies .choice { grid-column: span 2; height: 64px; font-size: 14px; }
@@ -176,7 +179,7 @@
     background: radial-gradient(ellipse at 50% 45%, #fff 0 55%, #efe3d1 56% 64%, #fffaf2 65%);
     box-shadow: 0 4px 0 rgba(0,0,0,0.25); transition: transform 0.08s;
   }
-  .choices.two .choice { height: 68px; border-radius: 14px 14px 40px 40px;
+  .choices.toppings .choice { height: 68px; border-radius: 14px 14px 40px 40px;
     background: radial-gradient(ellipse at 50% 30%, #fff 0 45%, #dcefff 46%); }
   .choice .emo { font-size: 34px; line-height: 1.05; }
   .choice svg { width: 40px; height: 40px; }
@@ -265,7 +268,7 @@
     <div class="step-label">1. Pick the pie</div>
     <div class="choices pies" id="pie-choices"></div>
     <div class="step-label">3. Pick the topping</div>
-    <div class="choices two" id="topping-choices"></div>
+    <div class="choices toppings" id="topping-choices"></div>
     <div class="serve-row"><button class="btn serve" id="serve-btn" disabled>Serve! 🛎️</button></div>
   </div>
 </div>
@@ -303,8 +306,10 @@ const PIES = [
   { id: "lemon",   name: "Lemon",   emoji: "🍋", filling: "#f4d63c", raw: "#faeca6", lattice: false },
 ];
 const TOPPINGS = [
-  { id: "cream",    name: "Whipped cream" },
-  { id: "icecream", name: "Ice cream" },
+  { id: "cream",    name: "Whipped cream",   say: "whipped cream" },
+  { id: "icecream", name: "Ice cream",       say: "ice cream" },
+  { id: "oreo",     name: "Oreos",           say: "Oreos" },
+  { id: "chips",    name: "Chocolate chips", say: "chocolate chips" },
 ];
 const CUSTOMERS = ["🧒", "👧", "👦", "👩", "👨", "👵", "👴", "🧑", "👱‍♀️", "👩‍🦰", "🧔", "👮", "🧑‍🚒", "🤴", "👸"];
 const HAPPY_WORDS = ["Yum!", "Thank you!", "Delicious!", "Perfect!", "Wow!"];
@@ -321,6 +326,27 @@ function toppingSvg(id, x, y, s) {
       <ellipse cx="${x}" cy="${y - s*0.22}" rx="${s*0.24}" ry="${s*0.18}"/>
       <path d="M${x} ${y - s*0.48} q${s*0.1} ${s*0.12} 0 ${s*0.16}" fill="#fffdf8"/>
     </g>`;
+  }
+  if (id === "oreo") {
+    // a little pile of three sandwich cookies
+    const cookie = (cx, cy, r) => `<g>
+      <ellipse cx="${cx}" cy="${cy + r*0.4}" rx="${r}" ry="${r*0.42}" fill="#2b1d17"/>
+      <rect x="${cx - r}" y="${cy + r*0.05}" width="${r*2}" height="${r*0.35}" fill="#f6f1e7"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="${r}" ry="${r*0.42}" fill="#3b2a21" stroke="#1d1410" stroke-width="1"/>
+      <ellipse cx="${cx}" cy="${cy}" rx="${r*0.55}" ry="${r*0.22}" fill="none" stroke="#5a4334" stroke-width="1"/>
+    </g>`;
+    const r = s * 0.24;
+    return cookie(x - s*0.24, y + s*0.12, r) + cookie(x + s*0.24, y + s*0.12, r) + cookie(x, y - s*0.08, r);
+  }
+  if (id === "chips") {
+    // chocolate chips sprinkled around
+    const spots = [[-0.38, 0.05], [-0.18, -0.12], [0.02, 0.08], [0.22, -0.1], [0.4, 0.06], [-0.24, 0.2], [0.16, 0.22], [0.02, -0.22]];
+    const c = s * 0.085;
+    return spots.map(([dx, dy]) => {
+      const cx = x + dx * s, cy = y + dy * s;
+      return `<path d="M${cx} ${cy - c*1.3} C${cx + c*0.7} ${cy - c*0.2} ${cx + c} ${cy + c*0.8} ${cx} ${cy + c*0.8}
+        C${cx - c} ${cy + c*0.8} ${cx - c*0.7} ${cy - c*0.2} ${cx} ${cy - c*1.3} Z" fill="#4a2a17" stroke="#2a170c" stroke-width="0.8"/>`;
+    }).join("");
   }
   // ice cream scoop
   return `<g>
@@ -346,7 +372,9 @@ function pieSvg(pie, toppingId, bake) {
   const smoke = bake === "burnt" ? `<g fill="#888" opacity="0.6">
       <circle cx="60" cy="30" r="10"/><circle cx="70" cy="18" r="8"/><circle cx="110" cy="28" r="9"/><circle cx="102" cy="15" r="7"/>
     </g>` : "";
-  const top = toppingId ? toppingSvg(toppingId, 85, 52, 50) : "";
+  // where each topping sits on the pie: cream and ice cream pile up, cookies sit on top, chips spread out
+  const place = { cream: [52, 50], icecream: [52, 50], oreo: [60, 50], chips: [68, 90] }[toppingId] || [52, 50];
+  const top = toppingId ? toppingSvg(toppingId, 85, place[0], place[1]) : "";
   return `<svg viewBox="0 0 170 120" xmlns="http://www.w3.org/2000/svg">
     ${smoke}
     <path d="M18 72 L32 104 Q85 116 138 104 L152 72 Z" fill="#b9c0c7" stroke="#8d959d" stroke-width="2"/>
@@ -389,7 +417,9 @@ function tableSvg() {
 }
 
 function smallToppingSvg(id) {
-  return `<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">${toppingSvg(id, 30, 34, 46)}</svg>`;
+  // cookies and chips are small things, so draw them a bit bigger on the buttons
+  const size = { oreo: 60, chips: 64 }[id] || 46;
+  return `<svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">${toppingSvg(id, 30, 32, size)}</svg>`;
 }
 
 // ============================================================
@@ -598,7 +628,7 @@ function nextCustomer() {
   // fill in the speech bubble first, so the customer can stand below it
   const b = $("bubble");
   b.className = "bubble";
-  b.innerHTML = `${pie.name} pie with ${topping.name.toLowerCase()}!
+  b.innerHTML = `${pie.name} pie with ${topping.say}!
     <div class="order-icons"><span style="font-size:30px">${pie.emoji}</span> + ${smallToppingSvg(topping.id)}</div>`;
 
   const el = makePerson(CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)]);
