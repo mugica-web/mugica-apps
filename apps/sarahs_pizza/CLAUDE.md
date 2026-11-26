@@ -31,6 +31,11 @@ silently does nothing where it isn't available.
   (buttons sit 3 + 2).
 - Orders get harder with stars: under 3 stars, one topping ×1–2; 3–5 stars,
   one or two toppings ×1–3; 6+ stars, two toppings ×1–3.
+- Each pizza starts from scratch: tap 🫓 Dough 3 times (a ball squished flat,
+  `state.base` 0→3), then 🥫 Sauce (4), then 🧀 Cheese (5). Only the next step's
+  button is enabled and wiggles. After the cheese the step buttons are replaced
+  by the topping buttons. A wrong pizza keeps its base; a new customer starts
+  from dough again.
 - Tap a topping to add a piece (max 9), ↩️ removes the last one, 🔥 Bake!
   bakes for 1.5 s and then checks: counts per topping must match exactly.
 - Right: ⭐, customer sits at one of 4 chairs (oldest diner leaves), next
@@ -43,7 +48,8 @@ None.
 
 ## Testing
 
-No test file. Drive it with Playwright against `index.html` as a `file://`
+No test file. Drive it with Playwright (click the wiggling step buttons with
+`{ force: true }`, or Playwright waits forever for them to stop moving) against `index.html` as a `file://`
 URL: read `state.order` ({toppingId: count}), click `.topping[data-id=...]`
 that many times, click `#done-btn`, then wait for `state.busy` to be false
 (a right pizza takes ~3.6 s to the next customer, a wrong one ~4.6 s). Check
