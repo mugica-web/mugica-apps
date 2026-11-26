@@ -92,7 +92,7 @@
   .order .reaction { flex: 1; text-align: center; font-size: 60px; }
 
   .board { margin-top: 0; background: #c98d50; border-radius: 0 0 22px 22px; border: 4px solid var(--brown-dark); border-top: 8px solid #8c5a32;
-    display: flex; align-items: center; justify-content: center; height: 228px; position: relative;
+    display: flex; align-items: center; justify-content: center; height: 200px; position: relative;
     background-image: repeating-linear-gradient(0deg, rgba(0,0,0,0.06) 0 3px, transparent 3px 14px); }
   .baking-glow { position: absolute; inset: 0; border-radius: 18px; pointer-events: none; opacity: 0;
     background: radial-gradient(circle, rgba(255,170,40,0.0) 30%, rgba(255,110,20,0.75) 75%);
@@ -106,8 +106,12 @@
   .pizza .piece.new { animation: drop 0.25s ease-out; }
   @keyframes drop { from { transform: translate(-50%, -120%) scale(1.6); opacity: 0; } }
 
-  .toppings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
-  .topping { font-size: 54px; line-height: 1; padding: 10px 0; border-radius: 22px; cursor: pointer;
+  .toppings { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 10px; }
+  /* 5 toppings: 3 on top, 2 underneath in the middle */
+  .toppings .topping { grid-column: span 2; }
+  .toppings .topping:nth-child(4) { grid-column: 2 / 4; }
+  .toppings .topping:nth-child(5) { grid-column: 4 / 6; }
+  .topping { font-size: 44px; line-height: 1; padding: 6px 0; border-radius: 22px; cursor: pointer;
     background: #fff; border: 4px solid #f1e2c8; box-shadow: 0 5px 0 #e2cfae; }
   .topping:active { transform: translateY(3px); box-shadow: 0 2px 0 #e2cfae; }
   .actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 14px; }
@@ -127,7 +131,7 @@
   <div class="awning"></div>
   <h1>Sarah's Pizza Shop</h1>
   <div class="title-art">👩‍🍳🍕</div>
-  <div class="title-help">Make the pizza<br>the customer wants!<br>🍅 🍍 🫑</div>
+  <div class="title-help">Make the pizza<br>the customer wants!<br>🍅 🍍 🫑 🍄 🥦</div>
   <button class="btn big" id="start-btn">▶ Play!</button>
 </div>
 
@@ -173,6 +177,8 @@ const TOPPINGS = [
   { id: "tomato",    emoji: "🍅", one: "tomato",       many: "tomatoes" },
   { id: "pineapple", emoji: "🍍", one: "pineapple",    many: "pineapples" },
   { id: "pepper",    emoji: "🫑", one: "green pepper", many: "green peppers" },
+  { id: "mushroom",  emoji: "🍄", one: "mushroom",     many: "mushrooms" },
+  { id: "broccoli",  emoji: "🥦", one: "broccoli",     many: "broccoli" },
 ];
 const CUSTOMERS = ["🧒", "👧", "👦", "👩", "👨", "👵", "👴", "🧑", "👱‍♀️", "👩‍🦰", "🧔", "👮", "🧑‍🚒", "🤴", "👸", "🦸", "🧚"];
 const NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six"];
@@ -394,7 +400,7 @@ function drawOrder() {
 }
 
 function drawMyPizza(baked, newest) {
-  $("my-pizza").outerHTML = pizzaHtml(state.pieces, 220, baked, newest).replace('<div class="pizza"', '<div class="pizza" id="my-pizza"');
+  $("my-pizza").outerHTML = pizzaHtml(state.pieces, 188, baked, newest).replace('<div class="pizza"', '<div class="pizza" id="my-pizza"');
   $("oops-btn").disabled = state.busy || state.pieces.length === 0;
   $("done-btn").disabled = state.busy || state.pieces.length === 0;
 }
@@ -470,7 +476,7 @@ function win() {
   $("win-stars").textContent = "⭐".repeat(STARS_TO_WIN);
   sounds.win();
   say("You did it! Sarah's Pizza Shop is the best pizza shop in town!");
-  const things = ["🍕", "⭐", "🎉", "🍅", "🍍", "🫑"];
+  const things = ["🍕", "⭐", "🎉", "🍅", "🍍", "🫑", "🍄", "🥦"];
   for (let i = 0; i < 30; i++) {
     const c = document.createElement("div");
     c.className = "confetti";
