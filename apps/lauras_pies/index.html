@@ -118,12 +118,12 @@
   }
 
   /* ---------- The wooden counter ---------- */
-  .counter-top { position: relative; z-index: 4; height: 120px; display: flex; align-items: flex-end; justify-content: center;
+  .counter-top { position: relative; z-index: 4; height: 108px; display: flex; align-items: flex-end; justify-content: center;
     background: linear-gradient(#e4b57c, #d29e62); border: 4px solid var(--brown-dark); border-bottom: none;
     border-top: 8px solid #8a5a33; margin-top: -14px; }
   .pie-view { flex: 1; height: 100%; display: flex; align-items: center; justify-content: center; }
   .pie-view .in-oven { font-size: 17px; font-weight: 800; color: var(--brown-dark); text-align: center; }
-  .oven { width: 128px; height: 104px; margin: 0 10px 6px 0; flex-shrink: 0; cursor: pointer; position: relative;
+  .oven { width: 128px; height: 98px; margin: 0 10px 4px 0; flex-shrink: 0; cursor: pointer; position: relative;
     background: linear-gradient(#6b6f75, #4a4d52); border: 4px solid #2c2e31; border-radius: 10px;
     display: flex; flex-direction: column; align-items: center; padding: 4px; box-shadow: 0 4px 0 rgba(0,0,0,0.3); }
   .oven:active { transform: translateY(2px); }
@@ -144,13 +144,23 @@
   .choice:disabled { opacity: 0.45; cursor: default; }
   .pie-view svg { width: 150px; height: 106px; }
   .pie-view .empty { font-size: 20px; font-weight: 800; color: var(--brown-dark); opacity: 0.6; }
-  .counter-front { padding: 6px 10px 14px; border: 4px solid var(--brown-dark); border-top: 6px solid #5c381d;
+  .counter-front { padding: 4px 10px 12px; border: 4px solid var(--brown-dark); border-top: 6px solid #5c381d;
     border-radius: 0 0 18px 18px;
     background: repeating-linear-gradient(90deg, #8a5a33 0 calc(25% - 4px), #6b4325 calc(25% - 4px) 25%); }
-  .step-label { color: #fff; font-weight: 800; font-size: 17px; margin: 4px 2px 2px; text-shadow: 1px 1px 0 var(--brown-dark); }
+  .step-label { color: #fff; font-weight: 800; font-size: 17px; margin: 2px 2px 1px; text-shadow: 1px 1px 0 var(--brown-dark); }
   .choices { display: grid; gap: 8px; }
   .choices.three { grid-template-columns: repeat(3, 1fr); }
   .choices.two { grid-template-columns: repeat(2, 1fr); }
+  /* 5 pies: 3 on top and 2 underneath on phones, all 5 in a row on wider screens */
+  .choices.pies { grid-template-columns: repeat(6, 1fr); }
+  .choices.pies .choice { grid-column: span 2; height: 64px; font-size: 14px; }
+  .choices.pies .choice .emo { font-size: 30px; }
+  .choices.pies .choice:nth-child(4) { grid-column: 2 / 4; }
+  .choices.pies .choice:nth-child(5) { grid-column: 4 / 6; }
+  @media (min-width: 470px) {
+    .choices.pies { grid-template-columns: repeat(5, 1fr); }
+    .choices.pies .choice, .choices.pies .choice:nth-child(4), .choices.pies .choice:nth-child(5) { grid-column: auto; }
+  }
   .choice {
     font-family: inherit; font-weight: 800; font-size: 16px; color: var(--brown-dark); cursor: pointer;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -158,12 +168,13 @@
     background: radial-gradient(ellipse at 50% 45%, #fff 0 55%, #efe3d1 56% 64%, #fffaf2 65%);
     box-shadow: 0 4px 0 rgba(0,0,0,0.25); transition: transform 0.08s;
   }
-  .choices.two .choice { border-radius: 14px 14px 40px 40px;
+  .choices.two .choice { height: 68px; border-radius: 14px 14px 40px 40px;
     background: radial-gradient(ellipse at 50% 30%, #fff 0 45%, #dcefff 46%); }
   .choice .emo { font-size: 34px; line-height: 1.05; }
   .choice svg { width: 40px; height: 40px; }
   .choice.picked { box-shadow: 0 0 0 5px var(--gold), 0 4px 0 rgba(0,0,0,0.25); transform: scale(1.05); }
-  .serve-row { margin-top: 12px; }
+  .serve-row { margin-top: 10px; }
+  .serve-row .btn.serve { padding: 8px 20px; }
 
   .flash { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); font-size: 40px; font-weight: 800;
     pointer-events: none; opacity: 0; text-align: center; text-shadow: 2px 2px 0 #fff; white-space: nowrap; }
@@ -244,7 +255,7 @@
   </div>
   <div class="counter-front">
     <div class="step-label">1. Pick the pie</div>
-    <div class="choices three" id="pie-choices"></div>
+    <div class="choices pies" id="pie-choices"></div>
     <div class="step-label">3. Pick the topping</div>
     <div class="choices two" id="topping-choices"></div>
     <div class="serve-row"><button class="btn serve" id="serve-btn" disabled>Serve! 🛎️</button></div>
@@ -280,6 +291,8 @@ const PIES = [
   { id: "apple",   name: "Apple",   emoji: "🍎", filling: "#e9b54c", raw: "#f3df9e", lattice: true },
   { id: "pumpkin", name: "Pumpkin", emoji: "🎃", filling: "#d9742a", raw: "#f1b67e", lattice: false },
   { id: "peach",   name: "Peach",   emoji: "🍑", filling: "#f7a66a", raw: "#fad3ad", lattice: true },
+  { id: "strawberry", name: "Strawberry", emoji: "🍓", filling: "#d8343c", raw: "#f1a3a3", lattice: true },
+  { id: "lemon",   name: "Lemon",   emoji: "🍋", filling: "#f4d63c", raw: "#faeca6", lattice: false },
 ];
 const TOPPINGS = [
   { id: "cream",    name: "Whipped cream" },
