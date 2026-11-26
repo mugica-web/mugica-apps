@@ -33,6 +33,10 @@ Sounds are Web Audio beeps; the AudioContext is created on the start tap.
 - The bake bar runs `BAKE_MS` (2 s). Out before `GREEN_FROM` = raw, between
   `GREEN_FROM` and `GREEN_TO` = perfect, after = burnt; at 100% it comes out
   burnt by itself. The bar's colours are set from those constants at load.
+- Customers are an emoji face over a drawn body (`bodySvg`) with random shirt,
+  pants or skirt. They walk in from the door, stand just below the speech bubble
+  (`counterSpot` shrinks them a little when the bubble is tall), and sit at the
+  tables in a side-view pose facing the table.
 - Serve: right pie + right topping + perfect bake = +5 coins, customer sits at
   a table (4 chairs, oldest diner leaves). Anything else = customer grumpy,
   walks out, no coins.

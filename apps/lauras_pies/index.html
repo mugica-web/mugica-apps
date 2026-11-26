@@ -94,10 +94,18 @@
   .table.left { left: 6px; }
   .table.right { right: 6px; }
   .person { position: absolute; line-height: 1; transform: translateX(-50%); z-index: 2;
+    display: flex; flex-direction: column; align-items: center;
     transition: left 0.4s ease-in-out, top 0.4s ease-in-out, font-size 0.4s, opacity 0.4s; }
+  .person .face { position: relative; z-index: 1; }
+  .person .body { display: block; width: 0.85em; height: 1.36em; margin-top: -0.08em; }
+  .person.sitting .body { height: 0.85em; }
+  .person.sitting.facing-left .body { transform: scaleX(-1); }
+  .person.walking .body { animation: waddle 0.16s infinite alternate; }
+  @keyframes waddle { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+  @media (prefers-reduced-motion: reduce) { .person.walking .body { animation: none; } }
   .bubble {
     position: absolute; top: 32px; left: 78px; right: 116px; z-index: 3;
-    background: #fff; border-radius: 16px; padding: 6px 10px; font-size: 17px; font-weight: 700;
+    background: #fff; border-radius: 16px; padding: 5px 10px; font-size: 16px; font-weight: 700;
     border: 3px solid var(--brown); line-height: 1.2;
   }
   .bubble::after {
@@ -105,7 +113,7 @@
     border: 8px solid transparent; border-top: 10px solid var(--brown);
   }
   .bubble .order-icons { display: flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 16px; }
-  .bubble .order-icons svg { width: 36px; height: 36px; }
+  .bubble .order-icons svg { width: 32px; height: 32px; }
   .bubble.happy { border-color: var(--green); background: #e7f8eb; }
   .bubble.happy::after { border-top-color: var(--green); }
   .bubble.grumpy { border-color: var(--red); background: #fde8e7; }
@@ -485,23 +493,74 @@ function updateHud() {
 }
 
 // ---------- people walking around the shop ----------
-const DOOR = { x: 39, y: 78, size: 44 };
-function counterSpot() { return { x: $("scene").clientWidth / 2, y: 146, size: 70 }; }
+// Each customer is an emoji face on top of a drawn body with their own clothes.
+const SHIRTS = ["#e25d5d", "#4f8fe6", "#58b368", "#f2a93b", "#9b6ad6", "#f27da6", "#3cc0c0"];
+const PANTS  = ["#3b4f7a", "#5a4636", "#2f2f3a", "#6b7f99", "#7a3b5c"];
+const SKIN = "#ffcc4d", SHOES = "#3a2a20";
+const pick = (list) => list[Math.floor(Math.random() * list.length)];
+
+function bodySvg(look, pose) {
+  const { shirt, pants, skirt } = look;
+  if (pose === "sitting") {
+    // side view, facing right (flipped with CSS to face left)
+    return `<svg class="body" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="20" width="26" height="9" rx="4" fill="${pants}"/>
+      <rect x="26" y="23" width="8" height="14" rx="3" fill="${skirt ? SKIN : pants}"/>
+      <ellipse cx="32" cy="38" rx="6" ry="2.5" fill="${SHOES}"/>
+      <rect x="6" y="0" width="22" height="25" rx="7" fill="${shirt}"/>
+      <rect x="18" y="6" width="17" height="7" rx="3.5" fill="${shirt}"/>
+      <circle cx="36" cy="9.5" r="3.5" fill="${SKIN}"/>
+    </svg>`;
+  }
+  const legs = skirt
+    ? `<rect x="13" y="38" width="5" height="21" rx="2.5" fill="${SKIN}"/><rect x="22" y="38" width="5" height="21" rx="2.5" fill="${SKIN}"/>
+       <path d="M8 26 H32 L37 44 H3 Z" fill="${pants}"/>`
+    : `<rect x="11" y="27" width="8.5" height="32" rx="3" fill="${pants}"/><rect x="20.5" y="27" width="8.5" height="32" rx="3" fill="${pants}"/>`;
+  return `<svg class="body" viewBox="0 0 40 64" xmlns="http://www.w3.org/2000/svg">
+    ${legs}
+    <ellipse cx="15" cy="60" rx="6" ry="3.5" fill="${SHOES}"/><ellipse cx="25" cy="60" rx="6" ry="3.5" fill="${SHOES}"/>
+    <rect x="3" y="3" width="7" height="24" rx="3.5" fill="${shirt}"/><rect x="30" y="3" width="7" height="24" rx="3.5" fill="${shirt}"/>
+    <circle cx="6.5" cy="28" r="3.5" fill="${SKIN}"/><circle cx="33.5" cy="28" r="3.5" fill="${SKIN}"/>
+    <rect x="8" y="0" width="24" height="31" rx="7" fill="${shirt}"/>
+  </svg>`;
+}
+function setFace(el, face) { el.querySelector(".face").textContent = face; }
+function setPose(el, pose, facing) {
+  el.classList.toggle("sitting", pose === "sitting");
+  el.classList.toggle("facing-left", facing === "left");
+  el.querySelector(".body").outerHTML = bodySvg(el._look, pose);
+}
+
+// sizes are the face size; the whole standing person is about 2.3 times that tall
+const DOOR = { x: 39, y: 68, size: 36 };
+function counterSpot() {
+  // stand just below the speech bubble; a tall bubble makes the customer a bit smaller
+  const bubble = $("bubble");
+  const top = Math.max(136, bubble.offsetTop + bubble.offsetHeight + 16);
+  const size = Math.max(32, Math.min(48, (248 - top) / 2.28));
+  return { x: $("scene").clientWidth / 2, y: top, size };
+}
 function seatSpots() {
   const w = $("scene").clientWidth;
-  // the 4 chairs: two at the left table, two at the right table
-  return [ { x: 20, y: 172 }, { x: 92, y: 172 }, { x: w - 92, y: 172 }, { x: w - 20, y: 172 } ]
-    .map(s => ({ ...s, size: 30 }));
+  // the 4 chairs: two at the left table, two at the right table (each faces its table)
+  return [ { x: 20, y: 168, facing: "right" }, { x: 92, y: 168, facing: "left" },
+           { x: w - 92, y: 168, facing: "right" }, { x: w - 20, y: 168, facing: "left" } ]
+    .map(s => ({ ...s, size: 26 }));
 }
 function placePerson(el, spot) {
   el.style.left = spot.x + "px";
   el.style.top = spot.y + "px";
   el.style.fontSize = spot.size + "px";
+  el.classList.add("walking");
+  clearTimeout(el._walkTimer);
+  el._walkTimer = setTimeout(() => el.classList.remove("walking"), 420);
 }
 function makePerson(face) {
   const el = document.createElement("div");
   el.className = "person";
-  el.textContent = face;
+  el._look = { shirt: pick(SHIRTS), pants: pick(PANTS), skirt: Math.random() < 0.4 };
+  el.innerHTML = `<span class="face"></span>${bodySvg(el._look, "standing")}`;
+  setFace(el, face);
   placePerson(el, DOOR);
   el.style.opacity = "0";
   $("scene").appendChild(el);
@@ -509,6 +568,7 @@ function makePerson(face) {
   return el;
 }
 function walkOut(el) {
+  setPose(el, "standing");
   placePerson(el, DOOR);
   el.style.opacity = "0";
   setTimeout(() => el.remove(), 450);
@@ -535,15 +595,16 @@ function nextCustomer() {
   state.bake = null;
   state.busy = false;
 
+  // fill in the speech bubble first, so the customer can stand below it
+  const b = $("bubble");
+  b.className = "bubble";
+  b.innerHTML = `${pie.name} pie with ${topping.name.toLowerCase()}!
+    <div class="order-icons"><span style="font-size:30px">${pie.emoji}</span> + ${smallToppingSvg(topping.id)}</div>`;
+
   const el = makePerson(CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)]);
   placePerson(el, counterSpot());
   el.style.opacity = "1";
   state.customerEl = el;
-
-  const b = $("bubble");
-  b.className = "bubble";
-  b.innerHTML = `${pie.name} pie with ${topping.name.toLowerCase()}!
-    <div class="order-icons"><span style="font-size:34px">${pie.emoji}</span> + ${smallToppingSvg(topping.id)}</div>`;
   drawCounter();
 }
 
@@ -648,7 +709,7 @@ function serve() {
   } else {
     state.mistakes++;
     const grumpy = state.customerEl;
-    grumpy.textContent = "😠";
+    setFace(grumpy, "😠");
     setTimeout(() => walkOut(grumpy), 400);
     b.className = "bubble grumpy";
     b.textContent = !rightOrder ? "That's not what I asked for! Hmph!"
@@ -662,12 +723,14 @@ function serve() {
 
 function sitDown(el) {
   // the happy customer takes the next chair; whoever was sitting there goes home
-  el.textContent = "😋";
+  setFace(el, "😋");
   const i = state.nextSeat;
   state.nextSeat = (state.nextSeat + 1) % 4;
   if (state.diners[i]) walkOut(state.diners[i]);
   state.diners[i] = el;
-  setTimeout(() => placePerson(el, seatSpots()[i]), 150);
+  const seat = seatSpots()[i];
+  setTimeout(() => placePerson(el, seat), 150);
+  setTimeout(() => { if (el.isConnected) setPose(el, "sitting", seat.facing); }, 600);
 }
 
 function flash(text, color) {
