@@ -24,8 +24,8 @@ Sounds are Web Audio beeps; the AudioContext is created on the start tap.
 
 ## Rules As Implemented
 
-- Menu: Apple, Pumpkin, Peach, Strawberry, Lemon pies; Whipped cream or Ice cream
-  topping. The 5 pie plates sit 3 + 2 on phones and in one row from 470 px wide.
+- Menu: Apple, Pumpkin, Peach, Strawberry, Lemon pies; Whipped cream, Ice cream,
+  Oreos or Chocolate chips topping (4 bowls in one row). The 5 pie plates sit 3 + 2 on phones and in one row from 470 px wide.
   Customers order a random pie + topping, never the same order twice in a row.
 - Making a pie: pick pie → tap oven to bake → tap again to take it out →
   pick topping → Serve. Toppings are locked until the pie is out of the oven;
