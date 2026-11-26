@@ -116,6 +116,24 @@
   .topping:active { transform: translateY(3px); box-shadow: 0 2px 0 #e2cfae; }
   .actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 14px; }
 
+  /* making the pizza: dough, sauce, cheese come first, then the toppings */
+  .maker { margin-top: 10px; }
+  .maker .toppings { margin-top: 0; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; height: 136px; }
+  [hidden] { display: none !important; }
+  .step { font-family: inherit; font-weight: 800; font-size: 20px; color: var(--brown-dark); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    background: #fff; border: 4px solid #f1e2c8; border-radius: 22px; box-shadow: 0 5px 0 #e2cfae; }
+  .step .emo { font-size: 54px; line-height: 1; }
+  .step:disabled { opacity: 0.35; cursor: default; }
+  .step.done { opacity: 0.6; }
+  .step.next { border-color: var(--gold); animation: wiggle 0.7s infinite; }
+  @keyframes wiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-4deg); } 75% { transform: rotate(4deg); } }
+  @media (prefers-reduced-motion: reduce) { .step.next { animation: none; } }
+  .pips { display: flex; gap: 4px; height: 12px; }
+  .pips i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--brown); display: block; }
+  .pips i.on { background: var(--brown); }
+
   /* ---------- win ---------- */
   .win-big { font-size: 64px; text-align: center; color: var(--red); line-height: 1.1; margin-top: 30px; text-shadow: 3px 3px 0 #fff; }
   .win-stars { font-size: 34px; text-align: center; margin: 14px 0; }
@@ -131,7 +149,7 @@
   <div class="awning"></div>
   <h1>Sarah's Pizza Shop</h1>
   <div class="title-art">👩‍🍳🍕</div>
-  <div class="title-help">Make the pizza<br>the customer wants!<br>🍅 🍍 🫑 🍄 🥦</div>
+  <div class="title-help">Make the dough, sauce and cheese,<br>then add the toppings<br>the customer wants!<br>🍅 🍍 🫑 🍄 🥦</div>
   <button class="btn big" id="start-btn">▶ Play!</button>
 </div>
 
@@ -151,7 +169,14 @@
     <div class="pizza" id="my-pizza"></div>
     <div class="baking-glow">🔥🔥🔥</div>
   </div>
-  <div class="toppings" id="toppings"></div>
+  <div class="maker">
+    <div class="steps" id="steps">
+      <button class="step" id="step-dough" aria-label="Squish the dough"><span class="emo">🫓</span>Dough<span class="pips" id="pips"><i></i><i></i><i></i></span></button>
+      <button class="step" id="step-sauce" aria-label="Add sauce"><span class="emo">🥫</span>Sauce</button>
+      <button class="step" id="step-cheese" aria-label="Add cheese"><span class="emo">🧀</span>Cheese</button>
+    </div>
+    <div class="toppings" id="toppings" hidden></div>
+  </div>
   <div class="actions">
     <button class="btn oops" id="oops-btn">↩️</button>
     <button class="btn" id="done-btn">🔥 Bake!</button>
@@ -195,8 +220,17 @@ SPOTS.push([50, 50]);
 // ============================================================
 //  DRAWING A PIZZA
 // ============================================================
-function pizzaHtml(pieces, size, baked, newestIndex) {
+function pizzaHtml(pieces, size, baked, newestIndex, base = 5) {
   // pieces = list of topping ids, in the order they were put on
+  // base = how far the pizza is made: 0-2 dough ball getting squished, 3 flat dough, 4 + sauce, 5 + cheese
+  if (base < 3) {
+    const r = [44, 60, 76][base];
+    return `<div class="pizza" style="width:${size}px;height:${size}px">
+      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="100" cy="104" rx="${r}" ry="${r * 0.9}" fill="#f3d9ab" stroke="#d9b780" stroke-width="4"/>
+        <ellipse cx="${100 - r * 0.3}" cy="${104 - r * 0.35}" rx="${r * 0.3}" ry="${r * 0.18}" fill="#fff" opacity="0.45"/>
+      </svg></div>`;
+  }
   const crust = baked ? "#c27a36" : "#eec27f";
   const crustLine = baked ? "#8e5420" : "#d3a35f";
   const cheese = baked ? "#f4bd45" : "#fbe38a";
@@ -206,8 +240,8 @@ function pizzaHtml(pieces, size, baked, newestIndex) {
   let html = `<div class="pizza" style="width:${size}px;height:${size}px">
     <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
       <circle cx="100" cy="100" r="96" fill="${crust}" stroke="${crustLine}" stroke-width="4"/>
-      <circle cx="100" cy="100" r="80" fill="#d8452e"/>
-      <path d="M100 26 C140 24 176 56 174 98 C178 140 142 176 100 172 C58 178 22 142 28 100 C24 60 58 22 100 26 Z" fill="${cheese}"/>
+      ${base >= 4 ? `<circle cx="100" cy="100" r="80" fill="#d8452e"/>` : ""}
+      ${base >= 5 ? `<path d="M100 26 C140 24 176 56 174 98 C178 140 142 176 100 172 C58 178 22 142 28 100 C24 60 58 22 100 26 Z" fill="${cheese}"/>` : ""}
       ${spots}
     </svg>`;
   pieces.forEach((id, i) => {
@@ -248,6 +282,7 @@ function beep(freq, len, type = "triangle", when = 0, vol = 0.15) {
 }
 const sounds = {
   plop()  { beep(500, 0.08); beep(750, 0.06, "triangle", 0.04); },
+  squish(){ beep(180, 0.12, "sine", 0, 0.2); beep(140, 0.1, "sine", 0.06, 0.15); },
   oops()  { beep(350, 0.1); },
   bonk()  { beep(150, 0.15, "square", 0, 0.08); },
   happy() { [523, 659, 784].forEach((f, i) => beep(f, 0.15, "triangle", i * 0.1)); },
@@ -370,6 +405,7 @@ function orderPieces(order) {
 function newCustomer(first) {
   state.order = makeOrder();
   state.pieces = [];
+  state.base = 0;
   state.busy = false;
   let face;
   do { face = CUSTOMERS[Math.floor(Math.random() * CUSTOMERS.length)]; } while (face === state.lastFace);
@@ -400,13 +436,40 @@ function drawOrder() {
 }
 
 function drawMyPizza(baked, newest) {
-  $("my-pizza").outerHTML = pizzaHtml(state.pieces, 188, baked, newest).replace('<div class="pizza"', '<div class="pizza" id="my-pizza"');
+  $("my-pizza").outerHTML = pizzaHtml(state.pieces, 188, baked, newest, state.base).replace('<div class="pizza"', '<div class="pizza" id="my-pizza"');
   $("oops-btn").disabled = state.busy || state.pieces.length === 0;
-  $("done-btn").disabled = state.busy || state.pieces.length === 0;
+  $("done-btn").disabled = state.busy || state.base < 5 || state.pieces.length === 0;
+  drawSteps();
+}
+
+function drawSteps() {
+  // dough, sauce and cheese buttons first; once the cheese is on, the toppings take their place
+  const b = state.base;
+  $("steps").hidden = b >= 5;
+  $("toppings").hidden = b < 5;
+  const steps = [["step-dough", b < 3], ["step-sauce", b === 3], ["step-cheese", b === 4]];
+  steps.forEach(([id, isNext], i) => {
+    const el = $(id);
+    el.disabled = !isNext || state.busy;
+    el.classList.toggle("next", isNext && !state.busy);
+    el.classList.toggle("done", (i === 0 && b >= 3) || (i === 1 && b >= 4));
+  });
+  // one dot fills in for each squish of the dough
+  document.querySelectorAll("#pips i").forEach((pip, i) => pip.classList.toggle("on", i < b));
+}
+
+function makeStep(step) {
+  if (state.busy) return;
+  const b = state.base;
+  const ok = (step === "dough" && b < 3) || (step === "sauce" && b === 3) || (step === "cheese" && b === 4);
+  if (!ok) { sounds.bonk(); return; }
+  state.base++;
+  if (step === "dough") sounds.squish(); else sounds.plop();
+  drawMyPizza(false);
 }
 
 function addTopping(id) {
-  if (state.busy) return;
+  if (state.busy || state.base < 5) return;
   if (state.pieces.length >= MAX_PIECES) { sounds.bonk(); return; }
   state.pieces.push(id);
   sounds.plop();
@@ -494,6 +557,9 @@ $("table-right").innerHTML = tableSvg();
 $("toppings").innerHTML = TOPPINGS.map(t =>
   `<button class="topping" data-id="${t.id}" aria-label="${t.one}">${t.emoji}</button>`).join("");
 document.querySelectorAll(".topping").forEach(b => b.addEventListener("click", () => addTopping(b.dataset.id)));
+$("step-dough").addEventListener("click", () => makeStep("dough"));
+$("step-sauce").addEventListener("click", () => makeStep("sauce"));
+$("step-cheese").addEventListener("click", () => makeStep("cheese"));
 $("oops-btn").addEventListener("click", oops);
 $("done-btn").addEventListener("click", bake);
 $("start-btn").addEventListener("click", startGame);
